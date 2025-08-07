@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-gray-50 text-gray-900;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .calendar-container {
+    @apply relative bg-white border border-gray-200;
+  }
+  
+  .calendar-header {
+    @apply grid grid-cols-8 bg-gray-50 border-b border-gray-200;
+    grid-template-columns: 80px repeat(7, 1fr);
+  }
+  
+  .calendar-body {
+    @apply relative;
+    min-height: 720px; /* 12 hours * 60px */
+  }
+  
+  .time-labels {
+    @apply absolute left-0 top-0 w-20 h-full bg-gray-50 border-r border-gray-200;
+  }
+  
+  .time-label {
+    @apply absolute right-2 text-xs text-gray-600;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  .day-columns {
+    @apply absolute left-20 top-0 right-0 h-full grid grid-cols-7;
+  }
+  
+  .day-column {
+    @apply relative border-r border-gray-200 last:border-r-0;
+  }
+  
+  .hour-lines {
+    @apply absolute inset-0 pointer-events-none;
+  }
+  
+  .hour-line {
+    @apply absolute left-0 right-0 border-t border-gray-100;
+    height: 1px;
+  }
+  
+  .time-slot {
+    @apply absolute w-full bg-transparent;
+    height: 60px;
+  }
+  
+  .timesheet-entry {
+    @apply absolute bg-blue-100 border border-blue-300 rounded text-xs cursor-pointer;
+    @apply hover:bg-blue-200 transition-colors shadow-sm;
+    min-height: 30px; /* 0.5 hour minimum */
+    left: 2px;
+    right: 2px;
+    z-index: 10;
+  }
+  
+  .timesheet-entry.resizing {
+    @apply z-50 shadow-lg;
+  }
+  
+  .activity-item {
+    @apply p-2 bg-white border border-gray-200 rounded cursor-grab;
+    @apply hover:bg-gray-50 transition-colors;
+  }
+  
+  .activity-item:active {
+    @apply cursor-grabbing;
+  }
+}
