@@ -22,6 +22,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draggedActivity, setDraggedActivity] = useState<Activity | null>(null)
+  const [draggedEntry, setDraggedEntry] = useState<CalendarEvent | null>(null)
 
   // Get current user
   const currentUser = UserService.getCurrentUser()
@@ -119,82 +120,149 @@ function App() {
       activity: entry.activity,
       status: entry.status,
       description: entry.description,
-      duration: entry.duration_hours
+      duration: entry.duration_hours,
+      notes: entry.notes // <-- include notes in event object
     }))
   }
 
   // Drag and drop handlers
   const handleDragStart = (event: DragStartEvent) => {
-    const activityId = event.active.id as string
-    const activity = activities.find(a => a.name === activityId)
-    setDraggedActivity(activity || null)
+    const activeId = event.active.id as string
+    const data = event.active.data.current
+    
+    if (data?.type === 'timesheet-entry') {
+      // Dragging a timesheet entry
+      setDraggedEntry(data.event)
+      setDraggedActivity(null)
+    } else if (data?.type === 'activity') {
+      // Dragging an activity - use the activity from drag data
+      setDraggedActivity(data.activity)
+      setDraggedEntry(null)
+    } else {
+      // Fallback for activities without proper data type
+      const activity = activities.find(a => a.name === activeId)
+      setDraggedActivity(activity || null)
+      setDraggedEntry(null)
+    }
   }
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    
-    // Clear dragged activity immediately to prevent return animation
+    const data = active.data.current
+
+    console.log('DragEnd - Active:', active.id, 'Data:', data, 'Over:', over?.id)
+
+    // Clear dragged items immediately to prevent return animation
     setDraggedActivity(null)
+    setDraggedEntry(null)
 
     if (!over || !selectedUser) {
+      console.log('DragEnd - Early return: no over or selectedUser')
       return
     }
 
-    const activityId = active.id as string
     const slotId = over.id as string
-    
+
     // Parse slot ID to get day and hour
     const slotMatch = slotId.match(/^slot-(\d+)-(\d+)$/)
-    if (!slotMatch) return
+    if (!slotMatch) {
+      console.log('DragEnd - No slot match for:', slotId)
+      return
+    }
 
     const dayIndex = parseInt(slotMatch[1])
     const hour = parseInt(slotMatch[2])
 
-    const activity = activities.find(a => a.name === activityId)
-    if (!activity) return
+    const weekData = getWeekData(currentWeek)
+    const targetDate = weekData.days[dayIndex]
 
-    try {
-      // Calculate the date and time for the drop
-      const weekData = getWeekData(currentWeek)
-      const targetDate = weekData.days[dayIndex]
-      
+    if (data?.type === 'timesheet-entry') {
+      console.log('DragEnd - Moving existing entry')
+      // Moving an existing timesheet entry
+      const entry = data.event as CalendarEvent
+
+      // Calculate new times based on drop position
+      const checkInTime = createLocalDateTime(targetDate, hour, 0)
+      const duration = entry.duration || 1
+      const checkOutTime = createLocalDateTime(targetDate, hour + duration, 0)
+
+      // Optimistically update UI
+      setTimesheetEntries((prev) =>
+        prev.map((e) =>
+          e.name === entry.id
+            ? {
+                ...e,
+                check_in_time: formatDateTimeForBackend(checkInTime),
+                check_out_time: formatDateTimeForBackend(checkOutTime),
+                duration_hours: duration,
+              }
+            : e
+        )
+      )
+
+      // Sync with backend
+      TimesheetService.updateTimesheetEntry(entry.id, {
+        check_in_time: formatDateTimeForBackend(checkInTime),
+        check_out_time: formatDateTimeForBackend(checkOutTime),
+        duration_hours: duration,
+      }).then(loadTimesheetEntries)
+    } else if (data?.type === 'activity') {
+      console.log('DragEnd - Creating new entry from activity:', data.activity)
+      // Creating new entry from activity
+      const activity = data.activity as Activity
+      if (!activity) {
+        console.log('DragEnd - No activity found')
+        return
+      }
+
       // Create local time using createLocalDateTime to ensure proper timezone handling
       const checkInTime = createLocalDateTime(targetDate, hour, 0)
       const checkOutTime = createLocalDateTime(targetDate, hour + 1, 0)
 
-      console.log('Creating entry:', {
-        targetDate: targetDate.toDateString(),
-        hour,
-        checkInTime: checkInTime.toString(),
-        checkInTimeUTC: checkInTime.toISOString(),
-        checkOutTime: checkOutTime.toString(),
-        checkOutTimeUTC: checkOutTime.toISOString()
-      })
-
-      // Create timesheet entry - send local time strings directly
-      await TimesheetService.createTimesheetEntry({
-        employee: selectedUser,
-        date: targetDate,
-        project: activity.project,
-        activity: activity.name,
-        check_in_time: formatDateTimeForBackend(checkInTime), // Send local time directly
-        check_out_time: formatDateTimeForBackend(checkOutTime), // Send local time directly
-        duration_hours: 1,
-        description: `Working on: ${activity.subject}`,
-        status: 'Draft'
-      })
-
-      // Reload timesheet entries
-      await loadTimesheetEntries()
+      // Immediately add the entry to prevent return animation
+      const tempId = `temp-${Date.now()}`;
+      console.log('DragEnd - Adding temp entry:', tempId)
       
-      // Clear dragged activity after successful drop
-      setDraggedActivity(null)
-    } catch (err) {
-      console.error('Failed to create timesheet entry:', err)
-      setError('Failed to create timesheet entry.')
-      
-      // Clear dragged activity even on error
-      setDraggedActivity(null)
+      // Use synchronous state update to ensure immediate UI change
+      setTimesheetEntries((prev) => [
+        ...prev,
+        {
+          name: tempId,
+          employee: selectedUser,
+          date: targetDate.toISOString().slice(0, 10),
+          status: 'Draft',
+          project: activity.project,
+          activity: activity.name,
+          check_in_time: formatDateTimeForBackend(checkInTime),
+          check_out_time: formatDateTimeForBackend(checkOutTime),
+          duration_hours: 1,
+          description: `Working on: ${activity.subject}`,
+        },
+      ])
+
+      // Handle backend sync asynchronously without affecting the drop success
+      setTimeout(() => {
+        TimesheetService.createTimesheetEntry({
+          employee: selectedUser,
+          date: targetDate,
+          project: activity.project,
+          activity: activity.name,
+          check_in_time: formatDateTimeForBackend(checkInTime),
+          check_out_time: formatDateTimeForBackend(checkOutTime),
+          duration_hours: 1,
+          description: `Working on: ${activity.subject}`,
+          status: 'Draft',
+        }).then(() => {
+          console.log('DragEnd - Backend create successful, removing temp entry')
+          setTimesheetEntries((prev) => prev.filter((e) => e.name !== tempId));
+          loadTimesheetEntries();
+        }).catch((error) => {
+          console.error('DragEnd - Backend create failed:', error)
+          setTimesheetEntries((prev) => prev.filter((e) => e.name !== tempId));
+        });
+      }, 0)
+    } else {
+      console.log('DragEnd - Unknown data type or no data type:', data)
     }
   }
 
@@ -244,6 +312,7 @@ function App() {
     <DndContext 
       onDragStart={handleDragStart} 
       onDragEnd={handleDragEnd}
+      dropAnimation={null}
     >
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
@@ -303,6 +372,8 @@ function App() {
                 events={getCalendarEvents()}
                 viewMode={viewMode}
                 onEventUpdate={loadTimesheetEntries}
+                projects={projects}
+                activities={activities}
               />
             </div>
           </div>
@@ -314,6 +385,38 @@ function App() {
             <div className="activity-item opacity-90 transform rotate-3">
               <div className="font-medium text-sm">{draggedActivity.subject}</div>
               <div className="text-xs text-gray-600">{draggedActivity.project}</div>
+            </div>
+          )}
+          {draggedEntry && (
+            <div 
+              className="bg-blue-100 border border-blue-300 rounded text-xs cursor-pointer hover:bg-blue-200 transition-colors shadow-lg opacity-90 transform rotate-3"
+              style={{
+                width: '200px',
+                height: `${(draggedEntry.duration || 1) * 60}px`,
+                minHeight: '60px'
+              }}
+            >
+              <div className="flex items-start justify-between p-1 h-full">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-xs truncate">
+                    {draggedEntry.title}
+                  </div>
+                  <div className="text-xs opacity-75 truncate">
+                    {draggedEntry.project}
+                  </div>
+                  
+                  {/* Only show time details for entries longer than 1 hour to prevent crowding */}
+                  {(draggedEntry.duration || 0) > 1.0 && (
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xs">
+                          {draggedEntry.duration?.toFixed(1)}h
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </DragOverlay>

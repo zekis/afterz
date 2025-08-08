@@ -17,6 +17,7 @@ interface DraggableActivityProps {
 const DraggableActivity: React.FC<DraggableActivityProps> = ({ activity, project }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: activity.name,
+    data: { type: 'activity', activity }
   })
 
   return (

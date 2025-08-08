@@ -1,36 +1,52 @@
 import React, { useState, useRef, useCallback } from 'react'
-import { Clock, Edit, Trash2, Square, GripHorizontal } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { useDraggable } from '@dnd-kit/core'
+import { Clock, Edit, Trash2, Square, GripHorizontal, Move } from 'lucide-react'
 import { CalendarEvent } from '../../types'
 import { getStatusColor, formatTime, formatDateTimeForBackend } from '../../lib/utils'
 import { TimesheetService } from '../../services/timesheetService'
+import EditTimesheetModal from './EditTimesheetModal'
 
 interface TimesheetEntryProps {
   event: CalendarEvent
   onUpdate: () => void
   slotHeight?: number
   hourHeight?: number
+  projects?: any[]
+  activities?: any[]
 }
 
 const TimesheetEntry: React.FC<TimesheetEntryProps> = ({ 
   event, 
   onUpdate, 
   slotHeight = 60,
-  hourHeight = 60 
+  hourHeight = 60,
+  projects = [],
+  activities = []
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [resizeType, setResizeType] = useState<'top' | 'bottom' | null>(null)
   const [resizeTooltip, setResizeTooltip] = useState<{ time: string; duration: string } | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const entryRef = useRef<HTMLDivElement>(null)
   const startY = useRef<number>(0)
   const startHeight = useRef<number>(0)
   const startTop = useRef<number>(0)
 
+  // Draggable functionality
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `entry-${event.id}`,
+    data: {
+      type: 'timesheet-entry',
+      event: event
+    }
+  })
+
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    // TODO: Open edit modal
-    console.log('Edit timesheet entry:', event.id)
+    setIsEditModalOpen(true)
   }
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -260,7 +276,7 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
   return (
     <div
       ref={entryRef}
-      className={`absolute inset-0 bg-blue-100 border border-blue-300 rounded text-xs cursor-pointer hover:bg-blue-200 transition-colors shadow-sm ${statusColors} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-50 shadow-lg' : 'z-10'}`}
+      className={`absolute inset-0 bg-blue-100 border border-blue-300 rounded text-xs cursor-pointer hover:bg-blue-200 transition-colors shadow-sm ${statusColors} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       title={`${event.title} - ${event.project}`}
@@ -275,54 +291,53 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         </div>
       )}
 
-      <div className="flex items-start justify-between p-1">
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-xs truncate">
-            {event.title}
-          </div>
-          <div className="text-xs opacity-75 truncate">
-            {event.project}
-          </div>
-          
-          {/* Only show time details for entries longer than 1 hour to prevent crowding */}
-          {duration > 1.0 && (
-            <div className="flex items-center space-x-2 mt-1">
-              <div className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
-                <span className="text-xs">
-                  {formatTime(event.start)}
-                  {event.end && ` - ${formatTime(event.end)}`}
-                </span>
-              </div>
-              
-              <span className="text-xs font-medium">
-                {duration.toFixed(1)}h
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Action buttons - show on hover */}
-        {isHovered && !isLoading && !isResizing && (
-          <div className="flex items-center space-x-1 ml-2">
-            <button
-              onClick={handleEdit}
-              className="p-1 hover:bg-black hover:bg-opacity-10 rounded"
-              title="Edit"
-            >
-              <Edit className="w-3 h-3" />
-            </button>
-            
-            <button
-              onClick={handleDelete}
-              className="p-1 hover:bg-red-500 hover:bg-opacity-20 rounded"
-              title="Delete"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
+      {/* Entry header (draggable area) */}
+      <div
+        ref={setNodeRef}
+        {...listeners}
+        {...attributes}
+        className="px-1 py-0.5 bg-blue-200 rounded-t cursor-move select-none"
+        title="Drag to move entry"
+      >
+        <div className="font-semibold text-xs truncate">{event.title}</div>
+        <div className="text-xs text-blue-900 truncate">{event.project}</div>
       </div>
+
+      {/* Only show time details for entries longer than 1 hour to prevent crowding */}
+      {duration > 1.0 && (
+        <div className="flex items-center space-x-2 mt-1 px-1">
+          <div className="flex items-center space-x-1">
+            <Clock className="w-3 h-3" />
+            <span className="text-xs">
+              {formatTime(event.start)}
+              {event.end && ` - ${formatTime(event.end)}`}
+            </span>
+          </div>
+          <span className="text-xs font-medium">
+            {duration.toFixed(1)}h
+          </span>
+        </div>
+      )}
+
+      {/* Action buttons - show on hover */}
+      {isHovered && !isLoading && !isResizing && (
+        <div className="flex items-center space-x-1 ml-2 absolute top-1 right-1 z-20">
+          <button
+            onClick={handleEdit}
+            className="p-1 hover:bg-black hover:bg-opacity-10 rounded"
+            title="Edit"
+          >
+            <Edit className="w-3 h-3" />
+          </button>
+          <button
+            onClick={handleDelete}
+            className="p-1 hover:bg-red-500 hover:bg-opacity-20 rounded"
+            title="Delete"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Bottom resize handle */}
       {(isHovered || isResizing) && !isActive && (
@@ -334,19 +349,48 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         </div>
       )}
 
-      {/* Description tooltip on hover */}
-      {event.description && isHovered && !isResizing && (
-        <div className="absolute z-10 bottom-full left-0 mb-1 p-2 bg-gray-900 text-white text-xs rounded shadow-lg max-w-xs">
+      {/* Description tooltip on hover - rendered as portal */}
+      {event.description && isHovered && !isResizing && entryRef.current && createPortal(
+        <div
+          className="timesheet-tooltip"
+          style={{
+            position: 'fixed',
+            zIndex: 10001,
+            left: entryRef.current.getBoundingClientRect().left,
+            top: entryRef.current.getBoundingClientRect().top - 40,
+            pointerEvents: 'none',
+            background: '#111827',
+            color: '#fff',
+            fontSize: '12px',
+            borderRadius: '0.375rem',
+            boxShadow: '0 2px 8px 0 rgba(0,0,0,0.15)',
+            padding: '8px',
+            maxWidth: '320px',
+            whiteSpace: 'pre-line'
+          }}
+        >
           {event.description}
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Resize tooltip */}
-      {isResizing && resizeTooltip && (
-        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">
+      {/* Resize tooltip - rendered as portal */}
+      {isResizing && resizeTooltip && entryRef.current && createPortal(
+        <div 
+          className="bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap"
+          style={{
+            position: 'fixed',
+            zIndex: 10001,
+            left: entryRef.current.getBoundingClientRect().left + (entryRef.current.getBoundingClientRect().width / 2),
+            top: entryRef.current.getBoundingClientRect().top - 32,
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none'
+          }}
+        >
           <div>{resizeTooltip.time}</div>
           <div className="text-gray-300">{resizeTooltip.duration}</div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Resize indicator */}
@@ -355,6 +399,16 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
           {duration.toFixed(1)}h
         </div>
       )}
+
+      {/* Edit Modal */}
+      <EditTimesheetModal
+        event={event}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onUpdate={onUpdate}
+        projects={projects}
+        activities={activities}
+      />
     </div>
   )
 }

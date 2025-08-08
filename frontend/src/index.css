@@ -71,7 +71,7 @@
   }
   
   .timesheet-entry.resizing {
-    @apply z-50 shadow-lg;
+    @apply z-40 shadow-lg;
   }
   
   .activity-item {
@@ -81,5 +81,16 @@
   
   .activity-item:active {
     @apply cursor-grabbing;
+  }
+  
+  .edit-modal-overlay {
+    z-index: 9999 !important;
+    position: fixed !important;
+    inset: 0 !important;
+  }
+  
+  .edit-modal-content {
+    z-index: 10000 !important;
+    position: relative !important;
   }
 }

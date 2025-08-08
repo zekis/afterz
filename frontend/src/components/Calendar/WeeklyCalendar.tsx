@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format } from 'date-fns'
-import { CalendarEvent } from '../../types'
+import { CalendarEvent, Project, Activity } from '../../types'
 import { getWeekData, getTimeSlots, formatTime, createTimeSlotId } from '../../lib/utils'
 import TimesheetEntry from './TimesheetEntry'
 
@@ -10,6 +10,8 @@ interface WeeklyCalendarProps {
   events: CalendarEvent[]
   viewMode: '6am-6pm' | 'full-day'
   onEventUpdate: () => void
+  projects?: Project[]
+  activities?: Activity[]
 }
 
 interface DroppableTimeSlotProps {
@@ -19,29 +21,34 @@ interface DroppableTimeSlotProps {
   children: React.ReactNode
 }
 
-const DroppableTimeSlot: React.FC<DroppableTimeSlotProps> = ({ slotId, dayIndex, hour, children }) => {
-  const { isOver, setNodeRef } = useDroppable({
-    id: slotId,
-  })
-
-  const topPosition = hour * 60 // 60px per hour
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`time-slot ${isOver ? 'bg-blue-50' : ''}`}
-      style={{ top: `${topPosition}px` }}
-    >
-      {children}
-    </div>
-  )
-}
+  const DroppableTimeSlot: React.FC<DroppableTimeSlotProps> = ({ slotId, dayIndex, hour, children }) => {
+    const { isOver, setNodeRef } = useDroppable({
+      id: slotId,
+      data: {
+        accepts: ['activity', 'timesheet-entry']
+      }
+    })
+  
+    const topPosition = hour * 60 // 60px per hour
+  
+    return (
+      <div
+        ref={setNodeRef}
+        className={`time-slot ${isOver ? 'bg-blue-400 bg-opacity-40' : ''}`}
+        style={{ top: `${topPosition}px` }}
+      >
+        {children}
+      </div>
+    )
+  }
 
 const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ 
   currentWeek, 
   events, 
   viewMode, 
-  onEventUpdate 
+  onEventUpdate,
+  projects = [],
+  activities = []
 }) => {
   const weekData = getWeekData(currentWeek)
   const startHour = viewMode === '6am-6pm' ? 6 : 0
@@ -168,6 +175,8 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                       event={event}
                       onUpdate={onEventUpdate}
                       hourHeight={hourHeight}
+                      projects={projects}
+                      activities={activities}
                     />
                   </div>
                 ))}
