@@ -111,29 +111,38 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
 
   // Dialog handlers
   const showSubmitDialog = () => {
+    const activityName = activities?.find(a => a.name === event.activity)?.activity_name || event.title
+    const projectName = projects?.find(p => p.name === event.project)?.project_name || event.project
+    
     setConfirmationDialog({
       isOpen: true,
       type: 'submit',
       title: 'Submit Entry',
-      message: `Are you sure you want to submit this timesheet entry for approval?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
+      message: `Are you sure you want to submit this timesheet entry for approval?\n\nEntry: ${activityName}\nProject: ${projectName}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
     })
   }
 
   const showApproveDialog = () => {
+    const activityName = activities?.find(a => a.name === event.activity)?.activity_name || event.title
+    const projectName = projects?.find(p => p.name === event.project)?.project_name || event.project
+    
     setConfirmationDialog({
       isOpen: true,
       type: 'approve',
       title: 'Approve Entry',
-      message: `Are you sure you want to approve this timesheet entry?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
+      message: `Are you sure you want to approve this timesheet entry?\n\nEntry: ${activityName}\nProject: ${projectName}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
     })
   }
 
   const showRejectDialog = () => {
+    const activityName = activities?.find(a => a.name === event.activity)?.activity_name || event.title
+    const projectName = projects?.find(p => p.name === event.project)?.project_name || event.project
+    
     setConfirmationDialog({
       isOpen: true,
       type: 'reject',
       title: 'Reject Entry',
-      message: `Please provide a reason for rejecting this timesheet entry:\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`,
+      message: `Please provide a reason for rejecting this timesheet entry:\n\nEntry: ${activityName}\nProject: ${projectName}\nDuration: ${(event.duration || 0).toFixed(1)} hours`,
       requiresInput: true,
       inputLabel: 'Rejection Reason',
       inputPlaceholder: 'Please explain why this entry is being rejected...'
@@ -141,20 +150,26 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
   }
 
   const showUnapproveDialog = () => {
+    const activityName = activities?.find(a => a.name === event.activity)?.activity_name || event.title
+    const projectName = projects?.find(p => p.name === event.project)?.project_name || event.project
+    
     setConfirmationDialog({
       isOpen: true,
       type: 'unapprove',
       title: 'Un-approve Entry',
-      message: `Are you sure you want to un-approve this entry and revert it to draft status?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
+      message: `Are you sure you want to un-approve this entry and revert it to draft status?\n\nEntry: ${activityName}\nProject: ${projectName}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
     })
   }
 
   const showDeleteDialog = () => {
+    const activityName = activities?.find(a => a.name === event.activity)?.activity_name || event.title
+    const projectName = projects?.find(p => p.name === event.project)?.project_name || event.project
+    
     setConfirmationDialog({
       isOpen: true,
       type: 'delete',
       title: 'Delete Entry',
-      message: `Are you sure you want to permanently delete this timesheet entry?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours\n\nThis action cannot be undone.`
+      message: `Are you sure you want to permanently delete this timesheet entry?\n\nEntry: ${activityName}\nProject: ${projectName}\nDuration: ${(event.duration || 0).toFixed(1)} hours\n\nThis action cannot be undone.`
     })
   }
 
@@ -600,8 +615,12 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
           document.body.style.cursor = ''
         }}
       >
-        <div className="font-semibold text-xs truncate">{event.title}</div>
-        <div className={`text-xs ${statusStyling.text} truncate`}>{event.project}</div>
+        <div className="font-semibold text-xs truncate">
+          {activities?.find(a => a.name === event.activity)?.activity_name || event.title}
+        </div>
+        <div className={`text-xs ${statusStyling.text} truncate`}>
+          {projects?.find(p => p.name === event.project)?.project_name || event.project}
+        </div>
         
         {/* Status Badge */}
         {event.status !== 'Draft' && (
@@ -651,25 +670,6 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         </div>
       )}
 
-      {/* Action buttons - show on hover for draft entries only */}
-      {isHovered && !isLoading && !isResizing && isEditable && (
-        <div className="flex items-center space-x-1 ml-2 absolute top-1 right-1 z-20">
-          <button
-            onClick={handleEdit}
-            className="p-1 hover:bg-black hover:bg-opacity-10 rounded"
-            title="Edit"
-          >
-            <Edit className="w-3 h-3" />
-          </button>
-          <button
-            onClick={showDeleteDialog}
-            className="p-1 hover:bg-red-500 hover:bg-opacity-20 rounded"
-            title="Delete"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
-      )}
 
       {/* Bottom resize handle - only for draft entries */}
       {(isHovered || isResizing) && !isActive && isEditable && (

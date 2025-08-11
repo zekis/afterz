@@ -21,15 +21,15 @@ def get_projects():
 def get_activities(project=None):
     """Get activities, optionally filtered by project"""
     try:
-        filters = {'status': ['not in', ['Closed', 'In Progress']]}
+        filters = {'status': ['not in', ['Closed', 'Cancelled']]}
         if project:
             filters['project'] = project
         
         activities = frappe.get_all(
             'Activity',
             fields=[
-                'name', 'activity_name', 'project', 'status', 'priority',
-                'location', 'description', 'assigned_to', 'estimated_hours'
+                'name', 'activity_name', 'project', 'status',
+                'description', 'estimated_hours'
             ],
             filters=filters,
             order_by='activity_name asc'
@@ -115,12 +115,12 @@ def get_user_assigned_activities(user=None):
         activities = frappe.get_all(
             'Activity',
             fields=[
-                'name', 'activity_name', 'project', 'status', 'priority',
-                'location', 'description', 'estimated_hours'
+                'name', 'activity_name', 'project', 'status',
+                'description', 'estimated_hours'
             ],
             filters={
                 'name': ['in', activity_names],
-                'status': ['in', ['Open', 'In Progress']]
+                'status': ['not in', ['Closed', 'Cancelled']]
             },
             order_by='activity_name asc'
         )
@@ -154,7 +154,17 @@ def get_assignable_activities(project_lead=None):
             fields=['name'],
             filters={'project_lead': project_lead, 'status': ['not in', ['Closed', 'Cancelled']]}
         )
+
+        # get projects where user is timesheet approver
+        project_timesheet_approver = frappe.get_all(
+            'Project',
+            fields=['name'],
+            filters={'timesheet_approver': project_lead, 'status': ['not in', ['Closed', 'Cancelled']]}
+        )
+
+        projects.extend(project_timesheet_approver)
         
+        # If no projects found, return empty list
         if not projects:
             return []
         
@@ -164,12 +174,12 @@ def get_assignable_activities(project_lead=None):
         activities = frappe.get_all(
             'Activity',
             fields=[
-                'name', 'activity_name', 'project', 'status', 'priority',
-                'location', 'description', 'estimated_hours'
+                'name', 'activity_name', 'project', 'status',
+                'description', 'estimated_hours'
             ],
             filters={
                 'project': ['in', project_names],
-                'status': ['in', ['Open', 'In Progress']]
+                'status': ['not in', ['Closed', 'Cancelled']]
             },
             order_by='project asc, activity_name asc'
         )

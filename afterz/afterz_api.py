@@ -59,17 +59,6 @@ def create_timesheet_entry(**kwargs):
                 except ValueError:
                     # If parsing fails, fallback to current time
                     kwargs[key] = frappe.utils.now_datetime().replace(tzinfo=None)
-            elif key == 'date' and isinstance(value, str):
-                # Handle date field - convert to date object
-                try:
-                    if isinstance(value, datetime):
-                        kwargs[key] = value.date()
-                    else:
-                        # Parse date string and extract date part
-                        dt = datetime.fromisoformat(value.replace('Z', '').split('T')[0])
-                        kwargs[key] = dt.date()
-                except ValueError:
-                    kwargs[key] = frappe.utils.getdate(value)
             
         doc = frappe.get_doc({
             'doctype': 'Timesheet Entry',
@@ -608,7 +597,7 @@ def get_user_pending_approvals(employee):
         entries = frappe.get_all(
             'Timesheet Entry',
             fields=[
-                'name', 'employee', 'date', 'project', 'activity', 
+                'name', 'employee', 'project', 'activity', 
                 'check_in_time', 'check_out_time', 'duration_hours', 
                 'status', 'description'
             ],

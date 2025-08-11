@@ -11,6 +11,8 @@ interface BulkActionsProps {
   currentUser: User
   onUpdate: () => void
   onToastError?: (message: string) => void
+  projects?: any[]
+  activities?: any[]
 }
 
 const BulkActions: React.FC<BulkActionsProps> = ({
@@ -18,7 +20,9 @@ const BulkActions: React.FC<BulkActionsProps> = ({
   selectedUser,
   currentUser,
   onUpdate,
-  onToastError
+  onToastError,
+  projects = [],
+  activities = []
 }) => {
   const [loading, setLoading] = useState(false)
   const [permissions, setPermissions] = useState<UserProjectPermissions>({
@@ -76,12 +80,12 @@ const BulkActions: React.FC<BulkActionsProps> = ({
 
       // Group entries by project for summary
       const projectSummary = draftEntries.reduce((acc, entry) => {
-        const project = entry.project || 'Unknown Project'
-        if (!acc[project]) {
-          acc[project] = { hours: 0, count: 0 }
+        const projectName = projects?.find(p => p.name === entry.project)?.project_name || entry.project || 'Unknown Project'
+        if (!acc[projectName]) {
+          acc[projectName] = { hours: 0, count: 0 }
         }
-        acc[project].hours += entry.duration_hours || 0
-        acc[project].count += 1
+        acc[projectName].hours += entry.duration_hours || 0
+        acc[projectName].count += 1
         return acc
       }, {} as Record<string, { hours: number; count: number }>)
 
@@ -149,12 +153,12 @@ const BulkActions: React.FC<BulkActionsProps> = ({
 
       // Group entries by project for summary
       const projectSummary = submittedEntries.reduce((acc, entry) => {
-        const project = entry.project || 'Unknown Project'
-        if (!acc[project]) {
-          acc[project] = { hours: 0, count: 0 }
+        const projectName = projects?.find(p => p.name === entry.project)?.project_name || entry.project || 'Unknown Project'
+        if (!acc[projectName]) {
+          acc[projectName] = { hours: 0, count: 0 }
         }
-        acc[project].hours += entry.duration_hours || 0
-        acc[project].count += 1
+        acc[projectName].hours += entry.duration_hours || 0
+        acc[projectName].count += 1
         return acc
       }, {} as Record<string, { hours: number; count: number }>)
 

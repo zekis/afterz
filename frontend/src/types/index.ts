@@ -16,10 +16,7 @@ export interface Activity {
   activity_name: string;
   project: string;
   status: 'Estimate' | 'Open' | 'Complete' | 'Closed' | 'Cancelled';
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-  location?: string;
   description?: string;
-  assigned_to?: string; // Deprecated - use ToDo system instead
   due_date?: string;
   estimated_hours?: number;
   progress_percent?: number;
@@ -33,7 +30,6 @@ export interface Activity {
 export interface TimesheetEntry {
   name?: string;
   employee: string;
-  date: string;
   status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Processed' | 'Scheduled';
   is_active?: boolean;
   project: string;

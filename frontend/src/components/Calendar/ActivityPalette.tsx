@@ -50,13 +50,6 @@ const DraggableActivity: React.FC<DraggableActivityProps> = ({
           <div className="text-xs text-gray-600 truncate">
             {project?.project_name || activity.project}
           </div>
-          {activity.location && (
-            <div className="text-xs text-gray-500 truncate">
-              📍 {activity.location}
-            </div>
-          )}
-          
-          
         </div>
         
         <div className="flex flex-col items-end space-y-1 ml-2">
@@ -77,11 +70,14 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
-  // Create project lookup map
+  // Create project lookup map (by both name and ID for flexibility)
   const projectMap = useMemo(() => {
     const map = new Map<string, Project>()
     projects.forEach(project => {
-      map.set(project.name, project)
+      map.set(project.name, project) // Map by project ID
+      if (project.project_name) {
+        map.set(project.project_name, project) // Also map by project name for backwards compatibility
+      }
     })
     return map
   }, [projects])
@@ -162,11 +158,13 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">All Projects</option>
-          {projects.map(project => (
-            <option key={project.name} value={project.name}>
-              {project.project_name}
-            </option>
-          ))}
+          {projects
+            .filter(project => activities.some(activity => activity.project === project.name))
+            .map(project => (
+              <option key={project.name} value={project.name}>
+                {project.project_name}
+              </option>
+            ))}
         </select>
       </div>
 
@@ -227,7 +225,7 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
 
       <div className="p-4 border-t bg-gray-50 rounded-b-lg">
         <p className="text-xs text-gray-600">
-          💡 Drag activities to calendar slots to create timesheet entries
+          💡 Drag activities to calendar slots to create timesheet entries. Only activities assigned to you are shown here. If you are missing activities to book to, please contact your project's timesheet approver or project lead.
         </p>
       </div>
     </div>

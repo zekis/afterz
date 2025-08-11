@@ -200,6 +200,44 @@ export class ProjectService {
 
     return response.message
   }
+
+  // Get projects where user can manage assignments (project_lead OR timesheet_approver)
+  static async getManageableProjects(user: string): Promise<Project[]> {
+    try {
+      // Get projects where user is project lead
+      const leadProjects = await FrappeAPI.getList<Project>(
+        'Project',
+        ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type', 'timesheet_approver'],
+        { 
+          status: ['!=','Archived'],
+          project_lead: user
+        },
+        'project_name asc'
+      )
+
+      // Get projects where user is timesheet approver
+      const approverProjects = await FrappeAPI.getList<Project>(
+        'Project',
+        ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type', 'timesheet_approver'],
+        { 
+          status: ['!=','Archived'],
+          timesheet_approver: user
+        },
+        'project_name asc'
+      )
+
+      // Combine and deduplicate projects
+      const allProjects = [...leadProjects.message, ...approverProjects.message]
+      const uniqueProjects = allProjects.filter((project, index, self) => 
+        index === self.findIndex(p => p.name === project.name)
+      )
+
+      return uniqueProjects
+    } catch (error) {
+      console.error('Failed to get manageable projects:', error)
+      return []
+    }
+  }
 }
 
 export class ActivityService {
@@ -208,8 +246,8 @@ export class ActivityService {
     const response = await FrappeAPI.getList<Activity>(
       'Activity',
       [
-        'name', 'activity_name', 'project', 'status', 'priority', 
-        'location', 'description', 'assigned_to', 'estimated_hours'
+        'name', 'activity_name', 'project', 'status', 
+        'description', 'estimated_hours'
       ],
       { 
         project: projectName,
@@ -226,8 +264,8 @@ export class ActivityService {
     const response = await FrappeAPI.getList<Activity>(
       'Activity',
       [
-        'name', 'activity_name', 'project', 'status', 'priority', 
-        'location', 'description', 'assigned_to', 'estimated_hours'
+        'name', 'activity_name', 'project', 'status', 
+        'description', 'estimated_hours'
       ],
       { status: ['not in', ['Closed', 'Cancelled']] },
       'activity_name asc'

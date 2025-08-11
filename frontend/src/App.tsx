@@ -12,8 +12,10 @@ import ViewToggle from './components/Controls/ViewToggle'
 import CalendarViewToggle from './components/Controls/CalendarViewToggle'
 import BulkActions from './components/Controls/BulkActions'
 import NavigationDropdown from './components/Controls/NavigationDropdown'
+import UserSwitchModal from './components/Controls/UserSwitchModal'
 import HistoryPanel from './components/Common/HistoryPanel'
 import { TimesheetService, ProjectService, ActivityService, UserService } from './services/timesheetService'
+import { FrappeAPI } from './services/api'
 import { TimesheetEntry, Activity, Project, User, CalendarEvent } from './types'
 import { getWeekData, formatDateTime, parseDateTime, createLocalDateTime, formatDateTimeForBackend, isTimeSlotAvailable, findOverlappingEntries, getActivityColor, formatDate } from './lib/utils'
 import { Calendar, Clock, Users, UserPlus } from 'lucide-react'
@@ -28,6 +30,7 @@ function App() {
   const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [manageableProjects, setManageableProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +46,7 @@ function App() {
   const [selectedActivityForAssignment, setSelectedActivityForAssignment] = useState<Activity | null>(null)
   const [manageAssignmentsModalOpen, setManageAssignmentsModalOpen] = useState(false)
   const [approvalDashboardModalOpen, setApprovalDashboardModalOpen] = useState(false)
+  const [userSwitchModalOpen, setUserSwitchModalOpen] = useState(false)
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
   
   // History panel state
@@ -82,7 +86,8 @@ function App() {
         await Promise.all([
           loadProjects(),
           loadUsers(),
-          loadActivities()
+          loadActivities(),
+          loadManageableProjects()
         ])
 
         setError(null)
@@ -177,6 +182,50 @@ function App() {
     }
   }
 
+  const loadProjectsForActivities = async (activityList: Activity[]) => {
+    try {
+      // Get unique project IDs from activities
+      const projectIds = [...new Set(activityList.map(a => a.project))]
+      
+      // Load only the projects we need
+      const projectPromises = projectIds.map(async (projectId) => {
+        try {
+          const response = await FrappeAPI.getDoc<Project>('Project', projectId)
+          return response.message
+        } catch (error) {
+          console.error(`Failed to load project ${projectId}:`, error)
+          return null
+        }
+      })
+      
+      const projectResults = await Promise.all(projectPromises)
+      const validProjects = projectResults.filter((p): p is Project => p !== null)
+      
+      // Merge with existing projects, avoiding duplicates
+      setProjects(prevProjects => {
+        const existingIds = new Set(prevProjects.map(p => p.name))
+        const newProjects = validProjects.filter(p => !existingIds.has(p.name))
+        return [...prevProjects, ...newProjects]
+      })
+      
+      console.log('Loaded projects for activities:', validProjects.length)
+    } catch (err) {
+      console.error('Failed to load projects for activities:', err)
+    }
+  }
+
+  const loadManageableProjects = async () => {
+    try {
+      if (currentUser) {
+        const manageableProjectData = await ProjectService.getManageableProjects(currentUser.name)
+        setManageableProjects(manageableProjectData)
+        console.log('Loaded manageable projects:', manageableProjectData.length)
+      }
+    } catch (err) {
+      console.error('Failed to load manageable projects:', err)
+    }
+  }
+
   const loadUsers = async () => {
     try {
       const userData = await UserService.getProjectUsers()
@@ -192,6 +241,11 @@ function App() {
       if (selectedUser) {
         const activityData = await ActivityService.getUserActivities(selectedUser)
         setActivities(activityData)
+        
+        // Load the specific projects referenced by these activities
+        if (activityData.length > 0) {
+          await loadProjectsForActivities(activityData)
+        }
       }
     } catch (err) {
       console.error('Failed to load activities:', err)
@@ -222,6 +276,58 @@ function App() {
         selectedUser
       )
       setTimesheetEntries(entries)
+      
+      // Load projects and activities referenced by timesheet entries
+      if (entries.length > 0) {
+        // Load projects
+        const projectIds = [...new Set(entries.map(e => e.project))]
+        const projectPromises = projectIds.map(async (projectId) => {
+          try {
+            const response = await FrappeAPI.getDoc<Project>('Project', projectId)
+            return response.message
+          } catch (error) {
+            console.error(`Failed to load project ${projectId}:`, error)
+            return null
+          }
+        })
+        
+        // Load activities
+        const activityIds = [...new Set(entries.map(e => e.activity))]
+        const activityPromises = activityIds.map(async (activityId) => {
+          try {
+            const response = await FrappeAPI.getDoc<Activity>('Activity', activityId)
+            return response.message
+          } catch (error) {
+            console.error(`Failed to load activity ${activityId}:`, error)
+            return null
+          }
+        })
+        
+        const [projectResults, activityResults] = await Promise.all([
+          Promise.all(projectPromises),
+          Promise.all(activityPromises)
+        ])
+        
+        const validProjects = projectResults.filter((p): p is Project => p !== null)
+        const validActivities = activityResults.filter((a): a is Activity => a !== null)
+        
+        // Merge with existing projects, avoiding duplicates
+        setProjects(prevProjects => {
+          const existingIds = new Set(prevProjects.map(p => p.name))
+          const newProjects = validProjects.filter(p => !existingIds.has(p.name))
+          return [...prevProjects, ...newProjects]
+        })
+        
+        // Merge with existing activities, avoiding duplicates
+        setActivities(prevActivities => {
+          const existingIds = new Set(prevActivities.map(a => a.name))
+          const newActivities = validActivities.filter(a => !existingIds.has(a.name))
+          return [...prevActivities, ...newActivities]
+        })
+        
+        console.log('Loaded projects for timesheet entries:', validProjects.length)
+        console.log('Loaded activities for timesheet entries:', validActivities.length)
+      }
     } catch (err) {
       console.error('Failed to load timesheet entries:', err)
       setError('Failed to load timesheet entries.')
@@ -345,7 +451,6 @@ function App() {
         // Create duplicated entry as Draft
         TimesheetService.createTimesheetEntry({
           employee: selectedUser,
-          date: formatDate(targetDate),
           project: entry.project,
           activity: entry.activity,
           check_in_time: formatDateTimeForBackend(checkInTime),
@@ -383,13 +488,12 @@ function App() {
         return
       }
 
-      // Optimistically update UI (including the date so it appears on the correct day)
+      // Optimistically update UI
       setTimesheetEntries((prev) =>
         prev.map((e) =>
           e.name === entry.id
             ? {
                 ...e,
-                date: formatDate(targetDate),
                 check_in_time: formatDateTimeForBackend(checkInTime),
                 check_out_time: formatDateTimeForBackend(checkOutTime),
                 duration_hours: duration,
@@ -398,9 +502,8 @@ function App() {
         )
       )
 
-      // Sync with backend (also update date so backend persists the moved day)
+      // Sync with backend
       TimesheetService.updateTimesheetEntry(entry.id, {
-        date: formatDate(targetDate),
         check_in_time: formatDateTimeForBackend(checkInTime),
         check_out_time: formatDateTimeForBackend(checkOutTime),
         duration_hours: duration,
@@ -449,7 +552,6 @@ function App() {
         {
           name: tempId,
           employee: selectedUser,
-          date: targetDate.toISOString().slice(0, 10),
           status: 'Draft',
           project: activity.project,
           activity: activity.name,
@@ -464,7 +566,6 @@ function App() {
       setTimeout(() => {
         TimesheetService.createTimesheetEntry({
           employee: selectedUser,
-          date: formatDate(targetDate),
           project: activity.project,
           activity: activity.name,
           check_in_time: formatDateTimeForBackend(checkInTime),
@@ -518,11 +619,12 @@ function App() {
 
   const handleEntryClick = (event: CalendarEvent, clickPosition: { x: number; y: number }) => {
     setSelectedEntryId(event.id)
+    const activityName = activities?.find(a => a.name === event.activity)?.activity_name || event.title
     setHistoryPanel({
       isOpen: true,
       doctype: 'Timesheet Entry',
       docname: event.id,
-      title: event.title
+      title: activityName
     })
   }
 
@@ -602,8 +704,8 @@ function App() {
               </div>
               
               <div className="flex items-center space-x-4">
-                {/* Manage Assignments button for project managers */}
-                {currentUser && projects.some(p => p.project_lead === currentUser.name) && (
+                {/* Manage Assignments button for project managers and timesheet approvers */}
+                {currentUser && manageableProjects.length > 0 && (
                   <button
                     onClick={() => setManageAssignmentsModalOpen(true)}
                     className="flex items-center space-x-2 px-3 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-colors backdrop-blur-sm"
@@ -634,9 +736,6 @@ function App() {
                     {/* Navigation dropdown */}
                     <NavigationDropdown 
                       currentUser={currentUser || undefined}
-                      users={users}
-                      selectedUser={selectedUser}
-                      onUserChange={handleUserChange}
                     />
                   </>
                 )}
@@ -649,16 +748,50 @@ function App() {
         <main className="w-full px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
           {/* Calendar View Controls */}
           <div className="mb-6 flex justify-between items-center flex-shrink-0">
-            {/* Bulk Actions */}
-            {currentUser && (
-              <BulkActions
-                currentWeek={calendarView === 'week' ? currentWeek : currentDay}
-                selectedUser={selectedUser}
-                currentUser={currentUser}
-                onUpdate={loadTimesheetEntries}
-                onToastError={setToastError}
-              />
-            )}
+            {/* Left side - User info and actions */}
+            <div className="flex items-center space-x-4">
+              {/* Selected User Display */}
+              {selectedUser && users.length > 0 && (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {users.find(u => u.name === selectedUser)?.full_name || selectedUser}
+                      </div>
+                      <div className="text-xs text-gray-500">Timesheet View</div>
+                    </div>
+                  </div>
+                  
+                  {/* Switch User Button - Only for approvers */}
+                  {currentUser && (currentUser.name === 'Administrator' || projects.some(p => p.timesheet_approver === currentUser.name)) && (
+                    <button
+                      onClick={() => setUserSwitchModalOpen(true)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium"
+                      title="Switch to another user's timesheet"
+                    >
+                      <Users className="w-4 h-4 text-gray-600" />
+                      <span className="text-gray-700">Switch User</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Bulk Actions */}
+              {currentUser && (
+                <BulkActions
+                  currentWeek={calendarView === 'week' ? currentWeek : currentDay}
+                  selectedUser={selectedUser}
+                  currentUser={currentUser}
+                  onUpdate={loadTimesheetEntries}
+                  onToastError={setToastError}
+                  projects={projects}
+                  activities={activities}
+                />
+              )}
+            </div>
 
             {/* Calendar View Toggle */}
             <CalendarViewToggle
@@ -807,6 +940,15 @@ function App() {
               title: 'Timesheet Entry'
             })
           }}
+        />
+
+        {/* User Switch Modal */}
+        <UserSwitchModal
+          isOpen={userSwitchModalOpen}
+          onClose={() => setUserSwitchModalOpen(false)}
+          users={users}
+          selectedUser={selectedUser}
+          onUserChange={handleUserChange}
         />
 
         {/* Drag Overlay */}

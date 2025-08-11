@@ -298,7 +298,7 @@ const ApprovalDashboardModal: React.FC<ApprovalDashboardModalProps> = ({
             <div>
               <h2 className="text-lg font-semibold text-white">Approval Dashboard</h2>
               <p className="text-sm text-blue-100">
-                {dashboardData ? `${dashboardData.total_pending} pending approvals` : 'Loading...'}
+                💡 Shows users from projects where you are timesheet approver. {dashboardData ? `${dashboardData.total_pending} pending approvals` : 'Loading...'}
               </p>
             </div>
           </div>

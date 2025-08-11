@@ -48,7 +48,7 @@ const ManageAssignmentsModal: React.FC<ManageAssignmentsModalProps> = ({
     try {
       setLoading(true)
       const [projectData, userData, activityData] = await Promise.all([
-        ProjectService.getUserProjects(currentUser?.name || ''),
+        ProjectService.getManageableProjects(currentUser?.name || ''),
         UserService.getProjectUsers(),
         ActivityService.getAssignableActivities(currentUser?.name)
       ])
@@ -168,7 +168,10 @@ const ManageAssignmentsModal: React.FC<ManageAssignmentsModalProps> = ({
             <UserPlus className="w-6 h-6 text-white" />
             <div>
               <h2 className="text-lg font-semibold text-white">Manage Activity Assignments</h2>
-              <p className="text-sm text-blue-100">Assign activities to team members</p>
+              <p className="text-sm text-blue-100">
+                💡 You can only see projects where you are the project lead or timesheet approver. 
+                Only open activities (not closed or cancelled) can be assigned.
+              </p>
             </div>
           </div>
           <button
@@ -246,16 +249,13 @@ const ManageAssignmentsModal: React.FC<ManageAssignmentsModalProps> = ({
                         <div className="text-xs text-gray-600 truncate">
                           {project?.project_name || activity.project}
                         </div>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getPriorityColor(activity.priority)}`}>
-                            {activity.priority}
-                          </span>
-                          {activity.estimated_hours && (
+                        {activity.estimated_hours && (
+                          <div className="mt-1">
                             <span className="text-xs text-gray-500">
-                              {activity.estimated_hours}h
+                              {activity.estimated_hours}h estimated
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
