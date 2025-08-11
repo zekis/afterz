@@ -3,7 +3,7 @@ export interface Project {
   project_name: string;
   customer?: string;
   status: 'Active' | 'On Hold' | 'Completed' | 'Cancelled';
-  project_manager?: string;
+  project_lead?: string;
   timesheet_approver?: string;
   division?: string;
   work_type?: string;
@@ -153,4 +153,8 @@ export interface TodoLite {
   reference_type?: string;
   reference_name?: string;
   allocated_to?: string;
+  priority?: 'Low' | 'Medium' | 'High';
+  status?: string;
+  creation?: string;
+  modified?: string;
 }

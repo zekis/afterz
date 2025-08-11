@@ -27,7 +27,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
   })
   const [confirmationDialog, setConfirmationDialog] = useState<{
     isOpen: boolean
-    type: 'submit-week'
+    type: 'submit-week' | 'approve-all'
     title: string
     message: string
   }>({
@@ -124,11 +124,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({
     }
   }
 
-  const handleApproveAll = async () => {
+  const showApproveAllDialog = async () => {
     if (!selectedUser) return
 
     try {
-      setLoading(true)
       const weekData = getWeekData(currentWeek)
       
       // Get the count of entries that will be approved (submitted entries only)
@@ -147,15 +146,45 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         }
         return
       }
-      
-      const confirmed = confirm(
-        `Approve ${submittedCount} submitted ${submittedCount === 1 ? 'entry' : 'entries'}?\n\n` +
-        `This will approve all submitted timesheet entries for the selected week. ` +
-        `Draft entries will be excluded and remain unchanged.`
-      )
-      
-      if (!confirmed) return
-      
+
+      // Group entries by project for summary
+      const projectSummary = submittedEntries.reduce((acc, entry) => {
+        const project = entry.project || 'Unknown Project'
+        if (!acc[project]) {
+          acc[project] = { hours: 0, count: 0 }
+        }
+        acc[project].hours += entry.duration_hours || 0
+        acc[project].count += 1
+        return acc
+      }, {} as Record<string, { hours: number; count: number }>)
+
+      const projectBreakdown = Object.entries(projectSummary)
+        .map(([project, data]) => `• ${project}: ${data.hours.toFixed(1)}h (${data.count} ${data.count === 1 ? 'entry' : 'entries'})`)
+        .join('\n')
+
+      const totalHours = submittedEntries.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0)
+      const weekRange = `${weekData.startDate.toLocaleDateString()} - ${weekData.endDate.toLocaleDateString()}`
+
+      setConfirmationDialog({
+        isOpen: true,
+        type: 'approve-all',
+        title: 'Approve All Submitted Entries',
+        message: `Are you sure you want to approve all submitted entries for the week of ${weekRange}?\n\nApproval Summary:\n• Total Hours: ${totalHours.toFixed(1)}h\n• Total Entries: ${submittedCount}\n\nProject Breakdown:\n${projectBreakdown}\n\nAll submitted entries will be approved and marked as completed. Draft entries will remain unchanged.`
+      })
+    } catch (error) {
+      console.error('Failed to load approval summary:', error)
+      if (onToastError) {
+        onToastError('Failed to load approval summary. Please try again.')
+      }
+    }
+  }
+
+  const handleConfirmApproveAll = async () => {
+    if (!selectedUser) return
+
+    try {
+      setLoading(true)
+      const weekData = getWeekData(currentWeek)
       await TimesheetService.approveAllEntries(selectedUser, weekData.startDate, weekData.endDate)
       onUpdate()
     } catch (error) {
@@ -163,6 +192,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
       if (onToastError) {
         onToastError('Failed to approve all entries. Please try again.')
       }
+      throw error // Re-throw to let dialog handle loading state
     } finally {
       setLoading(false)
     }
@@ -194,7 +224,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
 
       {showApproveButton && (
         <button
-          onClick={handleApproveAll}
+          onClick={showApproveAllDialog}
           disabled={loading}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
           title="Approve all submitted entries for this week"
@@ -208,7 +238,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({
       <ConfirmationDialog
         isOpen={confirmationDialog.isOpen}
         onClose={() => setConfirmationDialog(prev => ({ ...prev, isOpen: false }))}
-        onConfirm={handleConfirmSubmitWeek}
+        onConfirm={confirmationDialog.type === 'submit-week' ? handleConfirmSubmitWeek : handleConfirmApproveAll}
         title={confirmationDialog.title}
         message={confirmationDialog.message}
         type={confirmationDialog.type}

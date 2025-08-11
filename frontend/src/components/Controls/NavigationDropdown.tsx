@@ -1,13 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Home, Grid, LogOut, User } from 'lucide-react'
+import { ChevronDown, Home, Grid, LogOut, User, Users } from 'lucide-react'
 import { User as UserType } from '../../types'
+import UserSwitchModal from './UserSwitchModal'
 
 interface NavigationDropdownProps {
   currentUser?: UserType
+  users?: UserType[]
+  selectedUser?: string
+  onUserChange?: (userId: string) => void
 }
 
-const NavigationDropdown: React.FC<NavigationDropdownProps> = ({ currentUser }) => {
+const NavigationDropdown: React.FC<NavigationDropdownProps> = ({ 
+  currentUser, 
+  users = [], 
+  selectedUser, 
+  onUserChange 
+}) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [userSwitchModalOpen, setUserSwitchModalOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
@@ -65,6 +75,20 @@ const NavigationDropdown: React.FC<NavigationDropdownProps> = ({ currentUser }) 
             </>
           )}
 
+          {/* User Switching - Only for Administrators */}
+          {currentUser?.name === 'Administrator' && users.length > 0 && onUserChange && (
+            <button
+              onClick={() => {
+                setUserSwitchModalOpen(true)
+                setIsOpen(false)
+              }}
+              className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Users className="w-4 h-4 text-gray-500" />
+              <span>Switch User</span>
+            </button>
+          )}
+
           {/* Navigation Options */}
           <button
             onClick={() => handleNavigation('desk')}
@@ -93,6 +117,15 @@ const NavigationDropdown: React.FC<NavigationDropdownProps> = ({ currentUser }) 
           </button>
         </div>
       )}
+
+      {/* User Switch Modal */}
+      <UserSwitchModal
+        isOpen={userSwitchModalOpen}
+        onClose={() => setUserSwitchModalOpen(false)}
+        users={users}
+        selectedUser={selectedUser}
+        onUserChange={onUserChange || (() => {})}
+      />
     </div>
   )
 }

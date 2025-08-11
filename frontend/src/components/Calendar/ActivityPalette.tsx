@@ -33,14 +33,14 @@ const DraggableActivity: React.FC<DraggableActivityProps> = ({
   const activityColors = getActivityColor(activity.name)
   
   // Check if current user is project manager
-  const isProjectManager = currentUser && project?.project_manager === currentUser.name
+  const isProjectManager = currentUser && project?.project_lead === currentUser.name
 
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`activity-item ${activityColors.bg} ${activityColors.border} ${activityColors.text} ${isDragging ? 'opacity-30' : ''} relative`}
+      className={`activity-item p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-colors hover:shadow-md ${activityColors.bg} ${activityColors.border} ${activityColors.leftBorder} ${activityColors.leftBorderThick} ${activityColors.text} ${isDragging ? 'opacity-30' : ''} relative`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">

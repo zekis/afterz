@@ -193,18 +193,18 @@ export function isTimeSlotAvailable(
   return overlapping.length === 0
 }
 
-// Activity color utilities
+// Activity color utilities - using left border highlights with light gray backgrounds
 const ACTIVITY_COLORS = [
-  { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-700', header: 'bg-blue-200' },
-  { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-700', header: 'bg-green-200' },
-  { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-700', header: 'bg-purple-200' },
-  { bg: 'bg-pink-100', border: 'border-pink-300', text: 'text-pink-700', header: 'bg-pink-200' },
-  { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-700', header: 'bg-yellow-200' },
-  { bg: 'bg-indigo-100', border: 'border-indigo-300', text: 'text-indigo-700', header: 'bg-indigo-200' },
-  { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-700', header: 'bg-red-200' },
-  { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-700', header: 'bg-orange-200' },
-  { bg: 'bg-teal-100', border: 'border-teal-300', text: 'text-teal-700', header: 'bg-teal-200' },
-  { bg: 'bg-cyan-100', border: 'border-cyan-300', text: 'text-cyan-700', header: 'bg-cyan-200' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-blue-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-green-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-purple-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-pink-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-yellow-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-indigo-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-red-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-orange-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-teal-500', leftBorderThick: 'border-l-4' },
+  { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-900', leftBorder: 'border-l-cyan-500', leftBorderThick: 'border-l-4' },
 ]
 
 export function getActivityColor(activityName: string) {

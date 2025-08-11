@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay } from '@dnd-kit/core'
 import PlannerWeeklyCalendar from './components/Planner/PlannerWeeklyCalendar'
+import PlannerDailyCalendar from './components/Planner/PlannerDailyCalendar'
 import ToDoPalette from './components/Planner/ToDoPalette'
 import WeekSelector from './components/Controls/WeekSelector'
 import ViewToggle from './components/Controls/ViewToggle'
+import CalendarViewToggle from './components/Controls/CalendarViewToggle'
 import NavigationDropdown from './components/Controls/NavigationDropdown'
 import HistoryPanel from './components/Common/HistoryPanel'
 import { PlannerService } from './services/plannerService'
@@ -27,6 +29,8 @@ type PlannerCalendarEvent = {
 function BeforezApp() {
   // State
   const [currentWeek, setCurrentWeek] = useState(new Date())
+  const [currentDay, setCurrentDay] = useState(new Date())
+  const [calendarView, setCalendarView] = useState<'week' | 'day'>('week')
   const [viewMode, setViewMode] = useState<'6am-6pm' | 'full-day'>('6am-6pm')
   const [plannerEntries, setPlannerEntries] = useState<PlannerEntry[]>([])
   const [todos, setTodos] = useState<TodoLite[]>([])
@@ -83,13 +87,39 @@ function BeforezApp() {
     init()
   }, [])
 
-  // Load when week/user changes
+  // Load when week/user/day/view changes
   useEffect(() => {
     if (selectedUser) {
       loadPlannerEntries()
       loadTodos()
     }
-  }, [currentWeek, selectedUser])
+  }, [currentWeek, currentDay, selectedUser, calendarView])
+
+  // Responsive behavior - auto-switch to day view on small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && calendarView === 'week') {
+        setCalendarView('day')
+      }
+    }
+
+    handleResize() // Check on mount
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [calendarView])
+
+  // Sync currentDay with currentWeek when switching views (but not when currentWeek changes due to day navigation)
+  useEffect(() => {
+    if (calendarView === 'day') {
+      // Only sync when switching to day view, not when currentWeek changes
+      const week = getWeekData(currentWeek)
+      // Only update if currentDay is not already within this week
+      const dayWeek = getWeekData(currentDay)
+      if (dayWeek.startDate.getTime() !== week.startDate.getTime()) {
+        setCurrentDay(week.startDate)
+      }
+    }
+  }, [calendarView]) // Remove currentWeek dependency to prevent conflicts
 
   const loadProjects = async () => {
     try {
@@ -128,8 +158,21 @@ function BeforezApp() {
 
   const loadPlannerEntries = async () => {
     try {
-      const week = getWeekData(currentWeek)
-      const rows = await PlannerService.getPlannerEntries(week.startDate, week.endDate, selectedUser)
+      let startDate: Date, endDate: Date
+      
+      if (calendarView === 'day') {
+        // For daily view, load the week containing the current day
+        const week = getWeekData(currentDay)
+        startDate = week.startDate
+        endDate = week.endDate
+      } else {
+        // For weekly view, use current week
+        const week = getWeekData(currentWeek)
+        startDate = week.startDate
+        endDate = week.endDate
+      }
+      
+      const rows = await PlannerService.getPlannerEntries(startDate, endDate, selectedUser)
       setPlannerEntries(rows)
     } catch (e) {
       console.error('Failed to load planner entries', e)
@@ -188,8 +231,14 @@ function BeforezApp() {
     const dayIndex = parseInt(match[1], 10)
     const hour = parseInt(match[2], 10)
 
-    const week = getWeekData(currentWeek)
-    const targetDate = week.days[dayIndex]
+    // For daily view, use currentDay; for weekly view, use the specific day from the week
+    let targetDate: Date
+    if (calendarView === 'day') {
+      targetDate = currentDay
+    } else {
+      const week = getWeekData(currentWeek)
+      targetDate = week.days[dayIndex]
+    }
 
     if (data?.type === 'todo') {
       const todo = data.todo as TodoLite
@@ -255,6 +304,11 @@ function BeforezApp() {
   }
 
   const handleWeekChange = (newWeek: Date) => setCurrentWeek(newWeek)
+  const handleDayChange = (newDay: Date) => {
+    setCurrentDay(newDay)
+    // Don't update currentWeek to avoid conflicts with useEffect
+  }
+  const handleCalendarViewChange = (view: 'week' | 'day') => setCalendarView(view)
   const handleViewModeChange = (mode: '6am-6pm' | 'full-day') => setViewMode(mode)
   const handleUserChange = (userId: string) => setSelectedUser(userId)
 
@@ -385,9 +439,13 @@ function BeforezApp() {
               </div>
 
               <div className="flex items-center space-x-4">
-                <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
                 {currentUser && (
-                  <NavigationDropdown currentUser={currentUser || undefined} />
+                  <NavigationDropdown 
+                    currentUser={currentUser || undefined}
+                    users={users}
+                    selectedUser={selectedUser}
+                    onUserChange={handleUserChange}
+                  />
                 )}
               </div>
             </div>
@@ -395,65 +453,87 @@ function BeforezApp() {
         </header>
 
         {/* Main Content */}
-        <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
-          {/* Week Selector */}
-          <div className="mb-6">
-            <WeekSelector 
+        <main className="w-full px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
+          {/* Calendar View Controls */}
+          <div className="mb-6 flex justify-end flex-shrink-0">
+            <CalendarViewToggle
+              calendarView={calendarView}
+              onCalendarViewChange={handleCalendarViewChange}
               currentWeek={currentWeek}
+              currentDay={currentDay}
               onWeekChange={handleWeekChange}
-              selectedUser={selectedUser}
-              currentUser={currentUser || undefined}
-              users={users}
-              onUserChange={handleUserChange}
-              onUpdate={loadPlannerEntries}
-              onToastError={setToastError}
-              showBulkActions={false}
+              onDayChange={handleDayChange}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
           </div>
 
-          {/* Layout */}
-          <div className="flex gap-6 h-[calc(100vh-200px)]">
-            {/* ToDo Palette */}
-            <div className="w-80 h-full flex-shrink-0">
-              <ToDoPalette 
-                todos={todos} 
-                projects={projects} 
-                currentUser={currentUser || undefined}
-                users={users}
-                onCreateTodo={handleCreateTodo}
-                onAssignTodo={handleAssignTodo}
-                onCompleteTodo={handleCompleteTodo}
-                onCancelTodo={handleCancelTodo}
-              />
-            </div>
-
-            {/* Planner Calendar */}
-            <div className="flex-1 h-full flex">
-              <div className="flex-1">
-                <PlannerWeeklyCalendar
-                  currentWeek={currentWeek}
-                  events={getCalendarEvents()}
-                  viewMode={viewMode}
-                  onEventUpdate={loadPlannerEntries}
-                  projects={projects}
-                  allEntries={plannerEntries}
-                  onToastError={setToastError}
-                  onEntryClick={handleEntryClick}
-                  selectedEntryId={selectedEntryId}
-                />
+          {/* Main Layout - Two columns: Left (Palette + Calendar) | Right (History Panel) */}
+          <div className="flex gap-6 flex-1 min-h-0">
+            {/* Left Column - Palette and Calendar */}
+            <div className="flex gap-6 flex-1 min-h-0">
+              {/* ToDo Palette */}
+              <div className="w-80 flex-shrink-0 min-h-0">
+                <div className="h-full overflow-y-auto overflow-x-hidden light-scrollbar">
+                  <ToDoPalette 
+                    todos={todos} 
+                    projects={projects} 
+                    currentUser={currentUser || undefined}
+                    users={users}
+                    onCreateTodo={handleCreateTodo}
+                    onAssignTodo={handleAssignTodo}
+                    onCompleteTodo={handleCompleteTodo}
+                    onCancelTodo={handleCancelTodo}
+                  />
+                </div>
               </div>
-              
-              {/* History Panel */}
-              {historyPanel.isOpen && (
-                <HistoryPanel
-                  isOpen={historyPanel.isOpen}
-                  onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
-                  doctype={historyPanel.doctype}
-                  docname={historyPanel.docname}
-                  title={historyPanel.title}
-                />
-              )}
+
+              {/* Planner Calendar */}
+              <div className="flex-1 min-h-0">
+                <div className="h-full overflow-y-auto light-scrollbar">
+                  {calendarView === 'week' ? (
+                    <PlannerWeeklyCalendar
+                      currentWeek={currentWeek}
+                      events={getCalendarEvents()}
+                      viewMode={viewMode}
+                      onEventUpdate={loadPlannerEntries}
+                      projects={projects}
+                      allEntries={plannerEntries}
+                      onToastError={setToastError}
+                      onEntryClick={handleEntryClick}
+                      selectedEntryId={selectedEntryId}
+                    />
+                  ) : (
+                    <PlannerDailyCalendar
+                      currentDay={currentDay}
+                      events={getCalendarEvents()}
+                      viewMode={viewMode}
+                      onEventUpdate={loadPlannerEntries}
+                      projects={projects}
+                      allEntries={plannerEntries}
+                      onToastError={setToastError}
+                      onEntryClick={handleEntryClick}
+                      selectedEntryId={selectedEntryId}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
+          
+            {/* Right Column - History Panel */}
+            {historyPanel.isOpen && (
+              <div className="w-80 flex-shrink-0 min-h-0">
+                <div className="h-full overflow-y-auto overflow-x-hidden">
+                  <HistoryPanel
+                    isOpen={historyPanel.isOpen}
+                    onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
+                    doctype={historyPanel.doctype}
+                    docname={historyPanel.docname}
+                    title={historyPanel.title}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </main>
 

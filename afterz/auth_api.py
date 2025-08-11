@@ -24,12 +24,12 @@ def has_app_permission():
         current_user = frappe.session.user
         
         # Check if user is a project manager
-        project_manager_count = frappe.db.count("Project", {
-            "project_manager": current_user,
+        project_lead_count = frappe.db.count("Project", {
+            "project_lead": current_user,
             "status": ["!=", "Cancelled"]
         })
         
-        if project_manager_count > 0:
+        if project_lead_count > 0:
             return True
         
         # Check if user is a timesheet approver

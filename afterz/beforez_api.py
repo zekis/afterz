@@ -31,6 +31,7 @@ def get_user_todos(user=None):
             name,
             description as subject,
             reference_name as project,
+            reference_type,
             allocated_to,
             priority,
             status,

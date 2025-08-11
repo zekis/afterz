@@ -93,4 +93,70 @@
     z-index: 10000 !important;
     position: relative !important;
   }
+
+  /* Daily Calendar Styles */
+  .calendar-header-daily {
+    @apply flex bg-gray-50 border-b border-gray-300;
+  }
+  
+  .calendar-body-daily {
+    @apply relative;
+    min-height: 720px; /* 12 hours * 60px */
+  }
+  
+  .time-labels-daily {
+    @apply absolute left-0 top-0 w-20 h-full bg-gray-50 border-r border-gray-300;
+  }
+  
+  .time-label-daily {
+    @apply absolute right-2 text-xs text-gray-600;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  .day-column-daily {
+    @apply absolute left-20 top-0 right-0 h-full border-r border-gray-300;
+  }
+  
+  .hour-lines-daily {
+    @apply absolute inset-0 pointer-events-none;
+  }
+  
+  .hour-line-daily {
+    @apply absolute left-0 right-0 border-t border-gray-200;
+    height: 1px;
+  }
+
+  /* Custom light scrollbars for calendar and history panels */
+  .light-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .light-scrollbar::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+  }
+
+  .light-scrollbar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 4px;
+    border: 1px solid #f1f5f9;
+  }
+
+  .light-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+  }
+
+  .light-scrollbar::-webkit-scrollbar-corner {
+    background: #f8fafc;
+  }
+
+  /* Firefox scrollbar styling */
+  .light-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 #f8fafc;
+  }
 }

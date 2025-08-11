@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, CheckCircle, Clock, AlertTriangle, Users, Calendar, Search, Filter } from 'lucide-react'
+import { X, CheckCircle, Clock, AlertTriangle, Users, Calendar, Search, Filter, FileText } from 'lucide-react'
 import { User } from '../../types'
 import { TimesheetService } from '../../services/timesheetService'
 import { getWeekData, formatWeekRange } from '../../lib/utils'
@@ -9,6 +9,7 @@ interface ApprovalDashboardModalProps {
   onClose: () => void
   currentUser?: User
   onNavigateToUser: (userId: string, weekDate: Date) => void
+  onJumpToEntry?: (entryId: string, weekDate: Date) => void
 }
 
 interface UserApprovalData {
@@ -21,6 +22,22 @@ interface UserApprovalData {
   priority: 'High' | 'Medium' | 'Low'
   latest_submission_date?: string
   oldest_pending_date?: string
+}
+
+interface PendingApprovalEntry {
+  name: string
+  employee: string
+  employee_name: string
+  date: string
+  project: string
+  activity: string
+  check_in_time: string
+  check_out_time: string
+  duration_hours: number
+  status: string
+  description?: string
+  week_start: string
+  week_end: string
 }
 
 interface DashboardData {
@@ -36,10 +53,13 @@ const ApprovalDashboardModal: React.FC<ApprovalDashboardModalProps> = ({
   isOpen,
   onClose,
   currentUser,
-  onNavigateToUser
+  onNavigateToUser,
+  onJumpToEntry
 }) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [selectedUser, setSelectedUser] = useState<UserApprovalData | null>(null)
+  const [pendingEntries, setPendingEntries] = useState<PendingApprovalEntry[]>([])
+  const [loadingEntries, setLoadingEntries] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -52,6 +72,14 @@ const ApprovalDashboardModal: React.FC<ApprovalDashboardModalProps> = ({
     }
   }, [isOpen, currentUser, weeksBack])
 
+  useEffect(() => {
+    if (selectedUser) {
+      loadPendingEntries()
+    } else {
+      setPendingEntries([])
+    }
+  }, [selectedUser])
+
   const loadDashboardData = async () => {
     try {
       setLoading(true)
@@ -63,6 +91,21 @@ const ApprovalDashboardModal: React.FC<ApprovalDashboardModalProps> = ({
       setError('Failed to load approval data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPendingEntries = async () => {
+    if (!selectedUser) return
+    
+    try {
+      setLoadingEntries(true)
+      const entries = await TimesheetService.getUserPendingApprovals(selectedUser.name)
+      setPendingEntries(entries)
+    } catch (error) {
+      console.error('Failed to load pending entries:', error)
+      setPendingEntries([])
+    } finally {
+      setLoadingEntries(false)
     }
   }
 
@@ -199,6 +242,47 @@ const ApprovalDashboardModal: React.FC<ApprovalDashboardModalProps> = ({
       setError('Failed to approve entries')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const groupEntriesByWeek = (entries: PendingApprovalEntry[]) => {
+    const groups: { [key: string]: PendingApprovalEntry[] } = {}
+    
+    entries.forEach(entry => {
+      const weekKey = `${entry.week_start}_${entry.week_end}`
+      if (!groups[weekKey]) {
+        groups[weekKey] = []
+      }
+      groups[weekKey].push(entry)
+    })
+
+    return Object.entries(groups).map(([weekKey, entries]) => ({
+      weekStart: new Date(entries[0].week_start),
+      weekEnd: new Date(entries[0].week_end),
+      entries: entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    })).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime()) // Most recent first
+  }
+
+  const formatTime = (datetime: string) => {
+    return new Date(datetime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
+
+  const handleJumpToEntry = (entry: PendingApprovalEntry) => {
+    if (onJumpToEntry) {
+      const weekDate = new Date(entry.week_start)
+      onJumpToEntry(entry.name, weekDate)
+    }
+  }
+
+  const handleJumpToWeek = (weekGroup: { weekStart: Date; weekEnd: Date; entries: PendingApprovalEntry[] }) => {
+    if (selectedUser) {
+      // Navigate to the week for the selected user
+      onNavigateToUser(selectedUser.name, weekGroup.weekStart)
+      onClose()
     }
   }
 
@@ -376,49 +460,114 @@ const ApprovalDashboardModal: React.FC<ApprovalDashboardModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex-1 p-4">
-                  <div className="space-y-4">
-                    {/* Priority Info */}
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-2 mb-2">
-                        {getPriorityIcon(selectedUser.priority)}
-                        <span className="font-medium text-gray-900">Priority: {selectedUser.priority}</span>
-                      </div>
-                      {selectedUser.oldest_pending_date && (
-                        <p className="text-sm text-gray-600">
-                          Oldest pending submission from {new Date(selectedUser.oldest_pending_date).toLocaleDateString()}
-                        </p>
-                      )}
+                <div className="flex-1 overflow-y-auto p-4 light-scrollbar">
+                  {loadingEntries ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Clock className="w-6 h-6 animate-spin text-gray-400" />
+                      <span className="ml-2 text-gray-600">Loading entries...</span>
                     </div>
-
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">{selectedUser.submitted_count}</div>
-                        <div className="text-sm text-blue-800">Needs Approval</div>
-                      </div>
-                      <div className="p-3 bg-yellow-50 rounded-lg">
-                        <div className="text-2xl font-bold text-yellow-600">{selectedUser.draft_count}</div>
-                        <div className="text-sm text-yellow-800">Still Draft</div>
-                      </div>
+                  ) : pendingEntries.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No pending entries found</p>
+                      <p className="text-xs text-gray-400 mt-1">All timesheets are up to date!</p>
                     </div>
-
-                    {/* Date Range Info */}
-                    {dashboardData && (
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Calendar className="w-4 h-4 text-gray-600" />
-                          <span className="font-medium text-gray-900">Date Range</span>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Quick Stats Header */}
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">{selectedUser.submitted_count}</div>
+                          <div className="text-sm text-blue-800">Needs Approval</div>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          {formatWeekRange(
-                            new Date(dashboardData.date_range.start_date),
-                            new Date(dashboardData.date_range.end_date)
-                          )}
-                        </p>
+                        <div className="p-3 bg-yellow-50 rounded-lg">
+                          <div className="text-2xl font-bold text-yellow-600">{selectedUser.draft_count}</div>
+                          <div className="text-sm text-yellow-800">Still Draft</div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Pending Entries by Week */}
+                      {groupEntriesByWeek(pendingEntries).map((weekGroup, weekIndex) => (
+                        <div 
+                          key={weekIndex} 
+                          onClick={() => handleJumpToWeek(weekGroup)}
+                          className="border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                        >
+                          {/* Week Header */}
+                          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="w-4 h-4 text-gray-600" />
+                                <span className="font-medium text-gray-900">
+                                  {formatWeekRange(weekGroup.weekStart, weekGroup.weekEnd)}
+                                </span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  {weekGroup.entries.length} {weekGroup.entries.length === 1 ? 'entry' : 'entries'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-blue-600 font-medium">
+                                Click to view week →
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Week Summary */}
+                          <div className="p-4">
+                            <div className="grid grid-cols-2 gap-4 mb-3">
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-blue-600">
+                                  {weekGroup.entries.reduce((sum, entry) => sum + entry.duration_hours, 0).toFixed(1)}h
+                                </div>
+                                <div className="text-xs text-gray-600">Total Hours</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-green-600">
+                                  {new Set(weekGroup.entries.map(e => e.project)).size}
+                                </div>
+                                <div className="text-xs text-gray-600">Projects</div>
+                              </div>
+                            </div>
+
+                            {/* Days with entries */}
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(new Set(weekGroup.entries.map(entry => {
+                                const date = new Date(entry.date)
+                                return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
+                              }))).map((day, dayIndex) => (
+                                <span 
+                                  key={dayIndex}
+                                  className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                                >
+                                  {day}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Top projects */}
+                            <div className="mt-3">
+                              <div className="text-xs text-gray-600 mb-1">Projects:</div>
+                              <div className="flex flex-wrap gap-1">
+                                {Array.from(new Set(weekGroup.entries.map(e => e.project))).slice(0, 3).map((project, projIndex) => (
+                                  <span 
+                                    key={projIndex}
+                                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full truncate max-w-32"
+                                    title={project}
+                                  >
+                                    {project}
+                                  </span>
+                                ))}
+                                {new Set(weekGroup.entries.map(e => e.project)).size > 3 && (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                    +{new Set(weekGroup.entries.map(e => e.project)).size - 3} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}

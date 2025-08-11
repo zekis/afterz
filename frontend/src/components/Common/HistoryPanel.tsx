@@ -3,6 +3,18 @@ import { X, MessageSquare, Clock, User, Send, Loader2, Edit } from 'lucide-react
 import { HistoryService, HistoryEntry, CommentEntry } from '../../services/historyService'
 import { formatDateTime } from '../../lib/utils'
 
+// Simple date/time formatter without microseconds or timezone
+const formatSimpleDateTime = (date: Date): string => {
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+}
+
 type TimelineEntry = {
   type: 'history' | 'comment'
   id: string
@@ -134,33 +146,33 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="w-96 h-full bg-white border-l border-gray-200 flex flex-col shadow-lg">
+    <div className="w-full h-full bg-white border-l border-gray-200 flex flex-col shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between p-3 border-b border-gray-200">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 truncate">{title}</h3>
-          <p className="text-sm text-gray-500">{doctype}</p>
+          <h3 className="text-base font-semibold text-gray-900 truncate">{title}</h3>
+          <p className="text-xs text-gray-500">{doctype}</p>
         </div>
         <button
           onClick={onClose}
-          className="ml-2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+          className="ml-2 p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
         >
-          <X className="w-5 h-5 text-gray-500" />
+          <X className="w-4 h-4 text-gray-500" />
         </button>
       </div>
 
       {/* Timeline Header */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-gray-600" />
-          <span className="text-sm font-medium text-gray-700">
-            Activity Timeline ({history.length + comments.length} items)
+          <Clock className="w-3 h-3 text-gray-600" />
+          <span className="text-xs font-medium text-gray-700">
+            Activity Timeline ({history.length + comments.length})
           </span>
         </div>
       </div>
 
       {/* Unified Timeline Content */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0">
+      <div className="flex-1 overflow-y-auto p-3 min-h-0 light-scrollbar">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -190,7 +202,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
                               {entry.full_name || entry.owner}
                             </span>
                             <span className="text-xs text-gray-500">
-                              commented {formatDateTime(new Date(entry.creation))}
+                              {formatSimpleDateTime(new Date(entry.creation))}
                             </span>
                           </div>
                           <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -214,7 +226,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
                               {entry.owner}
                             </span>
                             <span className="text-xs text-gray-500">
-                              {formatDateTime(new Date(entry.creation))}
+                              {formatSimpleDateTime(new Date(entry.creation))}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600">
@@ -233,26 +245,26 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({
       </div>
 
       {/* Add Comment Form */}
-      <div className="border-t border-gray-200 p-4">
-        <form onSubmit={handleAddComment} className="space-y-3">
+      <div className="border-t border-gray-200 p-3">
+        <form onSubmit={handleAddComment} className="space-y-2">
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Add a comment..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            rows={3}
+            className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            rows={2}
             disabled={addingComment}
           />
           <div className="flex justify-end">
             <button
               type="submit"
               disabled={!newComment.trim() || addingComment}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
             >
               {addingComment ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-3 h-3" />
               )}
               <span>Add Comment</span>
             </button>

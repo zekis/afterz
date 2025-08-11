@@ -8,7 +8,7 @@ interface ConfirmationDialogProps {
   onConfirm: (data?: any) => void
   title: string
   message: string
-  type: 'submit' | 'approve' | 'reject' | 'unapprove' | 'delete' | 'submit-week'
+  type: 'submit' | 'approve' | 'reject' | 'unapprove' | 'delete' | 'submit-week' | 'approve-all'
   requiresInput?: boolean
   inputLabel?: string
   inputPlaceholder?: string
@@ -91,6 +91,12 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           icon: <Send className="w-6 h-6 text-blue-600" />,
           confirmButtonClass: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
           defaultConfirmText: 'Submit Week'
+        }
+      case 'approve-all':
+        return {
+          icon: <CheckCircle className="w-6 h-6 text-green-600" />,
+          confirmButtonClass: 'bg-green-600 hover:bg-green-700 focus:ring-green-500',
+          defaultConfirmText: 'Approve All'
         }
       default:
         return {

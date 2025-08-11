@@ -542,17 +542,20 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         bg: activityColors.bg,
         border: activityColors.border,
         text: activityColors.text,
-        header: activityColors.header,
+        leftBorder: activityColors.leftBorder,
+        leftBorderThick: activityColors.leftBorderThick,
         opacity: ''
       }
     } else {
-      // Use grey styling for all non-draft entries
+      // Use grey styling for all non-draft entries with left border
       return {
-        bg: 'bg-gray-200',
-        border: 'border-gray-400',
+        bg: 'bg-gray-50',
+        border: 'border-gray-300',
         text: 'text-gray-700',
-        header: 'bg-gray-300',
-        opacity: 'opacity-80'
+        leftBorder: 'border-l-gray-400',
+        leftBorderThick: 'border-l-4',
+        header: 'bg-gray-100',
+        opacity: 'opacity-90'
       }
     }
   }
@@ -563,7 +566,7 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
   return (
     <div
       ref={entryRef}
-      className={`absolute inset-0 ${statusStyling.bg} ${isSelected ? 'border-2 border-blue-500' : statusStyling.border} rounded text-xs ${isEditable ? 'cursor-pointer hover:opacity-90' : 'cursor-default'} transition-opacity shadow-sm ${statusStyling.text} ${statusStyling.opacity} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'} ${isSelected ? 'shadow-lg' : ''}`}
+      className={`absolute inset-0 ${statusStyling.bg} border ${isSelected ? 'border-2 border-blue-500' : statusStyling.border} ${statusStyling.leftBorder} ${statusStyling.leftBorderThick} rounded text-xs ${isEditable ? 'cursor-pointer hover:opacity-90' : 'cursor-default'} transition-opacity shadow-sm ${statusStyling.text} ${statusStyling.opacity} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'} ${isSelected ? 'shadow-lg' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}

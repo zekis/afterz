@@ -9,7 +9,7 @@ export class TimesheetService {
     endDate: Date,
     employee?: string
   ): Promise<TimesheetEntry[]> {
-    const response = await FrappeAPI.post<TimesheetEntry[]>('afterz.api.get_timesheet_entries', {
+    const response = await FrappeAPI.post<TimesheetEntry[]>('afterz.afterz_api.get_timesheet_entries', {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
       employee: employee
@@ -20,7 +20,7 @@ export class TimesheetService {
 
   // Create a new timesheet entry
   static async createTimesheetEntry(entry: Partial<TimesheetEntry>): Promise<TimesheetEntry> {
-    const response = await FrappeAPI.post<any>('afterz.api.create_timesheet_entry', entry)
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.create_timesheet_entry', entry)
     
     if (!response.message.success) {
       throw new Error(response.message.error || 'Failed to create timesheet entry')
@@ -41,7 +41,7 @@ export class TimesheetService {
       ...updates
     }
     
-    const response = await FrappeAPI.post<any>('afterz.api.update_timesheet_entry', data)
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.update_timesheet_entry', data)
     
     if (!response.message.success) {
       throw new Error(response.message.error || 'Failed to update timesheet entry')
@@ -53,7 +53,7 @@ export class TimesheetService {
 
   // Delete a timesheet entry
   static async deleteTimesheetEntry(name: string): Promise<void> {
-    const response = await FrappeAPI.post<any>('afterz.api.delete_timesheet_entry', { name })
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.delete_timesheet_entry', { name })
     
     if (!response.message.success) {
       throw new Error(response.message.error || 'Failed to delete timesheet entry')
@@ -76,7 +76,7 @@ export class TimesheetService {
 
   // Submit all entries for a week
   static async submitWeekEntries(employee: string, startDate: Date, endDate: Date): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.submit_week_entries', {
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.submit_week_entries', {
       employee: employee,
       start_date: formatDate(startDate),
       end_date: formatDate(endDate)
@@ -100,7 +100,7 @@ export class TimesheetService {
 
   // Approve all entries for a week
   static async approveAllEntries(employee: string, startDate: Date, endDate: Date, approvalNotes?: string): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.approve_all_entries', {
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.approve_all_entries', {
       employee: employee,
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
@@ -125,7 +125,7 @@ export class TimesheetService {
 
   // Reject single entry with reason
   static async rejectEntryWithReason(name: string, rejectionReason: string): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.reject_entry_with_reason', {
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.reject_entry_with_reason', {
       name: name,
       rejection_reason: rejectionReason
     })
@@ -134,7 +134,7 @@ export class TimesheetService {
 
   // Un-approve an approved entry back to draft
   static async unapproveEntry(name: string): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.unapprove_entry', {
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.unapprove_entry', {
       name: name
     })
     return response.message
@@ -142,13 +142,13 @@ export class TimesheetService {
 
   // Get approval dashboard data
   static async getApprovalDashboardData(): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.get_approval_dashboard_data', {})
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.get_approval_dashboard_data', {})
     return response.message
   }
 
   // Get detailed approval dashboard data for managers
   static async getDetailedApprovalDashboard(weeksBack: number = 4): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.get_approval_dashboard_data', {
+    const response = await FrappeAPI.post<any>('afterz.afterz_api.get_approval_dashboard_data', {
       weeks_back: weeksBack
     })
     return response.message
@@ -156,9 +156,17 @@ export class TimesheetService {
 
   // Get users with submission counts
   static async getUsersWithSubmissionCounts(startDate: Date, endDate: Date): Promise<User[]> {
-    const response = await FrappeAPI.post<User[]>('afterz.api.get_users_with_submission_counts', {
+    const response = await FrappeAPI.post<User[]>('afterz.afterz_api.get_users_with_submission_counts', {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate)
+    })
+    return response.message
+  }
+
+  // Get pending approval entries for a specific user
+  static async getUserPendingApprovals(employee: string): Promise<any[]> {
+    const response = await FrappeAPI.post<any[]>('afterz.afterz_api.get_user_pending_approvals', {
+      employee: employee
     })
     return response.message
   }
@@ -169,7 +177,7 @@ export class ProjectService {
   static async getActiveProjects(): Promise<Project[]> {
     const response = await FrappeAPI.getList<Project>(
       'Project',
-      ['name', 'project_name', 'customer', 'status', 'project_manager', 'division', 'work_type', 'timesheet_approver'],
+      ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'work_type', 'timesheet_approver'],
       { status: 'Active' },
       'project_name asc'
     )
@@ -182,10 +190,10 @@ export class ProjectService {
   static async getUserProjects(user: string): Promise<Project[]> {
     const response = await FrappeAPI.getList<Project>(
       'Project',
-      ['name', 'project_name', 'customer', 'status', 'project_manager', 'division', 'work_type'],
+      ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'work_type'],
       { 
         status: 'Active',
-        project_manager: user
+        project_lead: user
       },
       'project_name asc'
     )
@@ -230,17 +238,17 @@ export class ActivityService {
 
   // Get activities assigned to a specific user via ToDo system
   static async getUserActivities(user: string): Promise<Activity[]> {
-    const response = await FrappeAPI.post<Activity[]>('afterz.api.get_user_assigned_activities', {
+    const response = await FrappeAPI.post<Activity[]>('afterz.shared_api.get_user_assigned_activities', {
       user: user
     })
 
     return response.message
   }
 
-  // Get activities that can be assigned by project manager
-  static async getAssignableActivities(projectManager?: string): Promise<Activity[]> {
-    const response = await FrappeAPI.post<Activity[]>('afterz.api.get_assignable_activities', {
-      project_manager: projectManager
+  // Get activities that can be assigned by project lead
+  static async getAssignableActivities(projectLead?: string): Promise<Activity[]> {
+    const response = await FrappeAPI.post<Activity[]>('afterz.shared_api.get_assignable_activities', {
+      project_lead: projectLead
     })
 
     return response.message
@@ -254,7 +262,7 @@ export class ActivityService {
     dueDate?: string,
     notes?: string
   ): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.assign_activity_to_users', {
+    const response = await FrappeAPI.post<any>('afterz.shared_api.assign_activity_to_users', {
       activity_name: activityName,
       user_list: JSON.stringify(userList),
       priority: priority,
@@ -267,7 +275,7 @@ export class ActivityService {
 
   // Get activity assignments
   static async getActivityAssignments(activityName: string): Promise<any[]> {
-    const response = await FrappeAPI.post<any[]>('afterz.api.get_activity_assignments', {
+    const response = await FrappeAPI.post<any[]>('afterz.shared_api.get_activity_assignments', {
       activity_name: activityName
     })
 
@@ -276,7 +284,7 @@ export class ActivityService {
 
   // Remove activity assignment
   static async removeActivityAssignment(activityName: string, user: string): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.remove_activity_assignment', {
+    const response = await FrappeAPI.post<any>('afterz.shared_api.remove_activity_assignment', {
       activity_name: activityName,
       user: user
     })
@@ -315,7 +323,7 @@ export class UserService {
 
   // Get user project permissions
   static async getUserProjectPermissions(user?: string): Promise<any> {
-    const response = await FrappeAPI.post<any>('afterz.api.get_user_project_permissions', {
+    const response = await FrappeAPI.post<any>('afterz.shared_api.get_user_project_permissions', {
       user: user
     })
     return response.message

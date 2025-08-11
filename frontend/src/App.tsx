@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragCancelEvent } from '@dnd-kit/core'
 import WeeklyCalendar from './components/Calendar/WeeklyCalendar'
+import DailyCalendar from './components/Calendar/DailyCalendar'
 import ActivityPalette from './components/Calendar/ActivityPalette'
 import ActivityAssignmentModal from './components/Calendar/ActivityAssignmentModal'
 import ManageAssignmentsModal from './components/Calendar/ManageAssignmentsModal'
@@ -8,6 +9,8 @@ import ApprovalDashboardModal from './components/Calendar/ApprovalDashboardModal
 import WeekSelector from './components/Controls/WeekSelector'
 import UserSelector from './components/Controls/UserSelector'
 import ViewToggle from './components/Controls/ViewToggle'
+import CalendarViewToggle from './components/Controls/CalendarViewToggle'
+import BulkActions from './components/Controls/BulkActions'
 import NavigationDropdown from './components/Controls/NavigationDropdown'
 import HistoryPanel from './components/Common/HistoryPanel'
 import { TimesheetService, ProjectService, ActivityService, UserService } from './services/timesheetService'
@@ -18,6 +21,8 @@ import { Calendar, Clock, Users, UserPlus } from 'lucide-react'
 function App() {
   // State management
   const [currentWeek, setCurrentWeek] = useState(new Date())
+  const [currentDay, setCurrentDay] = useState(new Date())
+  const [calendarView, setCalendarView] = useState<'week' | 'day'>('week')
   const [selectedUser, setSelectedUser] = useState<string>('')
   const [viewMode, setViewMode] = useState<'6am-6pm' | 'full-day'>('6am-6pm')
   const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([])
@@ -92,13 +97,39 @@ function App() {
     initializeData()
   }, [])
 
-  // Load timesheet entries and activities when week or user changes
+  // Load timesheet entries and activities when week/user/day/view changes
   useEffect(() => {
     if (selectedUser) {
       loadTimesheetEntries()
       loadActivities() // Reload activities for the selected user
     }
-  }, [currentWeek, selectedUser])
+  }, [currentWeek, currentDay, selectedUser, calendarView])
+
+  // Responsive behavior - auto-switch to day view on small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && calendarView === 'week') {
+        setCalendarView('day')
+      }
+    }
+
+    handleResize() // Check on mount
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [calendarView])
+
+  // Sync currentDay with currentWeek when switching views
+  useEffect(() => {
+    if (calendarView === 'day') {
+      // Only sync when switching to day view, not when currentWeek changes
+      const week = getWeekData(currentWeek)
+      // Only update if currentDay is not already within this week
+      const dayWeek = getWeekData(currentDay)
+      if (dayWeek.startDate.getTime() !== week.startDate.getTime()) {
+        setCurrentDay(week.startDate)
+      }
+    }
+  }, [calendarView]) // Remove currentWeek dependency to prevent conflicts
 
   // Load pending approval count for managers
   useEffect(() => {
@@ -171,10 +202,23 @@ function App() {
     if (!selectedUser) return
 
     try {
-      const weekData = getWeekData(currentWeek)
+      let startDate: Date, endDate: Date
+      
+      if (calendarView === 'day') {
+        // For daily view, load the week containing the current day
+        const week = getWeekData(currentDay)
+        startDate = week.startDate
+        endDate = week.endDate
+      } else {
+        // For weekly view, use current week
+        const week = getWeekData(currentWeek)
+        startDate = week.startDate
+        endDate = week.endDate
+      }
+      
       const entries = await TimesheetService.getTimesheetEntries(
-        weekData.startDate,
-        weekData.endDate,
+        startDate,
+        endDate,
         selectedUser
       )
       setTimesheetEntries(entries)
@@ -265,8 +309,14 @@ function App() {
     const dayIndex = parseInt(slotMatch[1])
     const hour = parseInt(slotMatch[2])
 
-    const weekData = getWeekData(currentWeek)
-    const targetDate = weekData.days[dayIndex]
+    // For daily view, use currentDay; for weekly view, use the specific day from the week
+    let targetDate: Date
+    if (calendarView === 'day') {
+      targetDate = currentDay
+    } else {
+      const weekData = getWeekData(currentWeek)
+      targetDate = weekData.days[dayIndex]
+    }
 
     if (data?.type === 'timesheet-entry') {
       const entry = data.event as CalendarEvent
@@ -295,7 +345,7 @@ function App() {
         // Create duplicated entry as Draft
         TimesheetService.createTimesheetEntry({
           employee: selectedUser,
-          date: targetDate,
+          date: formatDate(targetDate),
           project: entry.project,
           activity: entry.activity,
           check_in_time: formatDateTimeForBackend(checkInTime),
@@ -414,7 +464,7 @@ function App() {
       setTimeout(() => {
         TimesheetService.createTimesheetEntry({
           employee: selectedUser,
-          date: targetDate,
+          date: formatDate(targetDate),
           project: activity.project,
           activity: activity.name,
           check_in_time: formatDateTimeForBackend(checkInTime),
@@ -447,6 +497,15 @@ function App() {
   // Event handlers
   const handleWeekChange = (newWeek: Date) => {
     setCurrentWeek(newWeek)
+  }
+
+  const handleDayChange = (newDay: Date) => {
+    setCurrentDay(newDay)
+    // Don't update currentWeek to avoid conflicts with useEffect
+  }
+
+  const handleCalendarViewChange = (view: 'week' | 'day') => {
+    setCalendarView(view)
   }
 
   const handleUserChange = (userId: string) => {
@@ -544,7 +603,7 @@ function App() {
               
               <div className="flex items-center space-x-4">
                 {/* Manage Assignments button for project managers */}
-                {currentUser && projects.some(p => p.project_manager === currentUser.name) && (
+                {currentUser && projects.some(p => p.project_lead === currentUser.name) && (
                   <button
                     onClick={() => setManageAssignmentsModalOpen(true)}
                     className="flex items-center space-x-2 px-3 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-colors backdrop-blur-sm"
@@ -554,11 +613,6 @@ function App() {
                     <span className="text-sm text-white font-medium">Manage Assignments</span>
                   </button>
                 )}
-
-                <ViewToggle 
-                  viewMode={viewMode} 
-                  onViewModeChange={handleViewModeChange} 
-                />
                 
                 {/* Show controls based on user permissions */}
                 {currentUser && (
@@ -578,7 +632,12 @@ function App() {
                     )}
                     
                     {/* Navigation dropdown */}
-                    <NavigationDropdown currentUser={currentUser || undefined} />
+                    <NavigationDropdown 
+                      currentUser={currentUser || undefined}
+                      users={users}
+                      selectedUser={selectedUser}
+                      onUserChange={handleUserChange}
+                    />
                   </>
                 )}
               </div>
@@ -587,63 +646,100 @@ function App() {
         </header>
 
         {/* Main Content */}
-        <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
-          {/* Week Selector */}
-          <div className="mb-6">
-            <WeekSelector 
+        <main className="w-full px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] flex flex-col">
+          {/* Calendar View Controls */}
+          <div className="mb-6 flex justify-between items-center flex-shrink-0">
+            {/* Bulk Actions */}
+            {currentUser && (
+              <BulkActions
+                currentWeek={calendarView === 'week' ? currentWeek : currentDay}
+                selectedUser={selectedUser}
+                currentUser={currentUser}
+                onUpdate={loadTimesheetEntries}
+                onToastError={setToastError}
+              />
+            )}
+
+            {/* Calendar View Toggle */}
+            <CalendarViewToggle
+              calendarView={calendarView}
+              onCalendarViewChange={handleCalendarViewChange}
               currentWeek={currentWeek}
+              currentDay={currentDay}
               onWeekChange={handleWeekChange}
-              selectedUser={selectedUser}
-              currentUser={currentUser || undefined}
-              users={users}
-              onUserChange={handleUserChange}
-              onUpdate={loadTimesheetEntries}
-              onToastError={setToastError}
+              onDayChange={handleDayChange}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
           </div>
 
-          {/* Calendar and Activity Palette */}
-          <div className="flex gap-6 h-[calc(100vh-200px)]">
-            {/* Activity Palette */}
-            <div className="w-80 h-full flex-shrink-0">
-              <ActivityPalette 
-                activities={activities}
-                projects={projects}
-                currentUser={currentUser || undefined}
-                onAssignActivity={handleAssignActivity}
-              />
-            </div>
-
-            {/* Calendar */}
-            <div className="flex-1 h-full flex">
-              <div className="flex-1">
-                <WeeklyCalendar
-                  currentWeek={currentWeek}
-                  events={getCalendarEvents()}
-                  viewMode={viewMode}
-                  onEventUpdate={loadTimesheetEntries}
-                  projects={projects}
-                  activities={activities}
-                  allEntries={timesheetEntries}
-                  onToastError={setToastError}
-                  onEntryClick={handleEntryClick}
-                  selectedEntryId={selectedEntryId}
-                  onStatusChange={handleStatusChange}
-                />
+          {/* Main Layout - Two columns: Left (Palette + Calendar) | Right (History Panel) */}
+          <div className="flex gap-6 flex-1 min-h-0">
+            {/* Left Column - Palette and Calendar */}
+            <div className="flex gap-6 flex-1 min-h-0">
+              {/* Activity Palette */}
+              <div className="w-80 flex-shrink-0 min-h-0">
+                <div className="h-full overflow-y-auto overflow-x-hidden light-scrollbar">
+                  <ActivityPalette 
+                    activities={activities}
+                    projects={projects}
+                    currentUser={currentUser || undefined}
+                    onAssignActivity={handleAssignActivity}
+                  />
+                </div>
               </div>
-              
-              {/* History Panel */}
-              {historyPanel.isOpen && (
-                <HistoryPanel
-                  isOpen={historyPanel.isOpen}
-                  onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
-                  doctype={historyPanel.doctype}
-                  docname={historyPanel.docname}
-                  title={historyPanel.title}
-                  refreshTrigger={historyRefreshTrigger}
-                />
-              )}
+
+              {/* Calendar */}
+              <div className="flex-1 min-h-0">
+                <div className="h-full overflow-y-auto light-scrollbar">
+                  {calendarView === 'week' ? (
+                    <WeeklyCalendar
+                      currentWeek={currentWeek}
+                      events={getCalendarEvents()}
+                      viewMode={viewMode}
+                      onEventUpdate={loadTimesheetEntries}
+                      projects={projects}
+                      activities={activities}
+                      allEntries={timesheetEntries}
+                      onToastError={setToastError}
+                      onEntryClick={handleEntryClick}
+                      selectedEntryId={selectedEntryId}
+                      onStatusChange={handleStatusChange}
+                    />
+                  ) : (
+                    <DailyCalendar
+                      currentDay={currentDay}
+                      events={getCalendarEvents()}
+                      viewMode={viewMode}
+                      onEventUpdate={loadTimesheetEntries}
+                      projects={projects}
+                      activities={activities}
+                      allEntries={timesheetEntries}
+                      onToastError={setToastError}
+                      onEntryClick={handleEntryClick}
+                      selectedEntryId={selectedEntryId}
+                      onStatusChange={handleStatusChange}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
+          
+            {/* Right Column - History Panel */}
+            {historyPanel.isOpen && (
+              <div className="w-80 flex-shrink-0 min-h-0">
+                <div className="h-full overflow-y-auto overflow-x-hidden">
+                  <HistoryPanel
+                    isOpen={historyPanel.isOpen}
+                    onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
+                    doctype={historyPanel.doctype}
+                    docname={historyPanel.docname}
+                    title={historyPanel.title}
+                    refreshTrigger={historyRefreshTrigger}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </main>
 
@@ -699,6 +795,18 @@ function App() {
           onClose={() => setApprovalDashboardModalOpen(false)}
           currentUser={currentUser || undefined}
           onNavigateToUser={handleNavigateToUser}
+          onJumpToEntry={(entryId, weekDate) => {
+            setSelectedUser(selectedUser)
+            setCurrentWeek(weekDate)
+            setApprovalDashboardModalOpen(false)
+            // Open history panel for the entry
+            setHistoryPanel({
+              isOpen: true,
+              doctype: 'Timesheet Entry',
+              docname: entryId,
+              title: 'Timesheet Entry'
+            })
+          }}
         />
 
         {/* Drag Overlay */}

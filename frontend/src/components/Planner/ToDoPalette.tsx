@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { Search, Folder, CheckSquare, UserPlus, CheckCircle, XCircle } from 'lucide-react'
+import { Search, Folder, CheckSquare, UserPlus, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import { TodoLite, Project, User as UserType } from '../../types'
 import { getActivityColor } from '../../lib/utils'
 import AppModeToggle from '../Controls/AppModeToggle'
@@ -68,6 +68,17 @@ const DraggableTodo: React.FC<DraggableTodoProps> = ({ todo, project, users = []
   const getContextMenuItems = () => {
     const items: any[] = []
 
+    // Add open in Frappe option
+    items.push({
+      label: 'Open in Frappe',
+      onClick: () => {
+        const frappeUrl = `${window.location.origin}/app/todo/${todo.name}`
+        window.open(frappeUrl, '_blank')
+      },
+      icon: <ExternalLink className="w-4 h-4" />,
+      className: 'text-blue-600 hover:bg-blue-50'
+    })
+
     // Add complete and cancel options
     if (onCompleteTodo) {
       items.push({
@@ -93,29 +104,41 @@ const DraggableTodo: React.FC<DraggableTodoProps> = ({ todo, project, users = []
       })
     }
 
-    // Add assignment options
-    if (onAssignTodo && users.length > 0) {
-      users.forEach(user => {
-        items.push({
-          label: `Assign to ${user.full_name}`,
-          onClick: () => {
-            console.log('Assign todo clicked:', todo.name, 'to', user.name)
-            onAssignTodo(todo.name, user.name)
-          },
-          icon: <UserPlus className="w-4 h-4" />,
-          className: 'text-blue-600 hover:bg-blue-50'
-        })
-      })
-    }
 
     return items
   }
 
+  // Get priority badge styling
+  const getPriorityBadge = () => {
+    if (!todo.priority) return null
+    
+    const priorityStyles = {
+      'High': 'bg-red-100 text-red-700 border-red-200',
+      'Medium': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      'Low': 'bg-green-100 text-green-700 border-green-200'
+    }
+    
+    return (
+      <span className={`px-1.5 py-0.5 text-xs font-medium rounded border ${priorityStyles[todo.priority]}`}>
+        {todo.priority}
+      </span>
+    )
+  }
+
+  // Handle double-click to open in Frappe
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const frappeUrl = `${window.location.origin}/app/todo/${todo.name}`
+    window.open(frappeUrl, '_blank')
+  }
+
   return (
     <div
-      className={`activity-item ${colors.bg} ${colors.border} ${colors.text} ${isDragging ? 'opacity-30' : ''} relative`}
-      title={todo.subject}
+      className={`activity-item p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-colors hover:shadow-md ${colors.bg} ${colors.border} ${colors.leftBorder} ${colors.leftBorderThick} ${colors.text} ${isDragging ? 'opacity-30' : ''} relative`}
+      title={`${todo.subject} - Double-click to open in Frappe`}
       onContextMenu={handleContextMenu}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="flex items-start justify-between">
         {/* Draggable area - only the main content */}
@@ -131,6 +154,13 @@ const DraggableTodo: React.FC<DraggableTodoProps> = ({ todo, project, users = []
           <div className="text-xs text-gray-600 truncate">
             {project?.project_name || todo.project || ''}
           </div>
+          
+          {/* Priority badge row */}
+          {todo.priority && (
+            <div className="mt-1">
+              {getPriorityBadge()}
+            </div>
+          )}
         </div>
         
         {/* Non-draggable area - badges and icons */}
@@ -183,27 +213,27 @@ const ToDoPalette: React.FC<ToDoPaletteProps> = ({ todos, projects, users = [], 
     })
   }, [todos, searchTerm, selectedProject])
 
-  // Group by project name (fallback to 'Unassigned')
+  // Group by reference_type (fallback to 'General')
   const grouped = useMemo(() => {
     const groups = new Map<string, TodoLite[]>()
     filteredTodos.forEach(t => {
-      const key = t.project || 'Unassigned'
+      const key = t.reference_type || 'General'
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(t)
     })
-    return Array.from(groups.entries()).map(([projectName, list]) => ({
-      project: projectMap.get(projectName),
-      projectName: projectName === 'Unassigned' ? 'General' : projectName,
+    return Array.from(groups.entries()).map(([referenceType, list]) => ({
+      referenceType,
+      displayName: referenceType === 'General' ? 'General Tasks' : `${referenceType}s`,
       todos: list.sort((a, b) => (a.subject || '').localeCompare(b.subject || ''))
     }))
-  }, [filteredTodos, projectMap])
+  }, [filteredTodos])
 
   // Default expanded
   useEffect(() => {
     setCollapsed(prev => {
       const next = { ...prev }
-      grouped.forEach(({ projectName }) => {
-        if (next[projectName] === undefined) next[projectName] = false
+      grouped.forEach(({ referenceType }) => {
+        if (next[referenceType] === undefined) next[referenceType] = false
       })
       return next
     })
@@ -279,39 +309,42 @@ const ToDoPalette: React.FC<ToDoPaletteProps> = ({ todos, projects, users = [], 
           </div>
         ) : (
           <div className="space-y-4">
-            {grouped.map(({ project, projectName, todos }) => (
-              <div key={projectName}>
+            {grouped.map(({ referenceType, displayName, todos }) => (
+              <div key={referenceType}>
                 <div
                   className="flex items-center justify-between mb-2 cursor-pointer select-none"
-                  onClick={() => setCollapsed(prev => ({ ...prev, [projectName]: !prev[projectName] }))}
+                  onClick={() => setCollapsed(prev => ({ ...prev, [referenceType]: !prev[referenceType] }))}
                 >
                   <div className="flex items-center space-x-2">
                     <Folder className="w-4 h-4 text-gray-400" />
                     <h4 className="font-medium text-sm text-gray-700">
-                      {project?.project_name || projectName}
+                      {displayName}
                     </h4>
                     <span className="text-xs text-gray-500">
                       ({todos.length})
                     </span>
                   </div>
                   <span className="text-xs text-gray-500">
-                    {collapsed[projectName] ? '►' : '▼'}
+                    {collapsed[referenceType] ? '►' : '▼'}
                   </span>
                 </div>
 
-                {!collapsed[projectName] && (
+                {!collapsed[referenceType] && (
                   <div className="space-y-2 ml-6">
-                    {todos.map(todo => (
-                      <DraggableTodo 
-                        key={todo.name} 
-                        todo={todo} 
-                        project={project}
-                        users={users}
-                        onAssignTodo={onAssignTodo}
-                        onCompleteTodo={onCompleteTodo}
-                        onCancelTodo={onCancelTodo}
-                      />
-                    ))}
+                    {todos.map(todo => {
+                      const project = projectMap.get(todo.project || '')
+                      return (
+                        <DraggableTodo 
+                          key={todo.name} 
+                          todo={todo} 
+                          project={project}
+                          users={users}
+                          onAssignTodo={onAssignTodo}
+                          onCompleteTodo={onCompleteTodo}
+                          onCancelTodo={onCancelTodo}
+                        />
+                      )
+                    })}
                   </div>
                 )}
               </div>
