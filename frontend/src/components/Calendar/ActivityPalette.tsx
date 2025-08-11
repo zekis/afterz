@@ -45,7 +45,7 @@ const DraggableActivity: React.FC<DraggableActivityProps> = ({
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm text-gray-900 truncate">
-            {activity.subject}
+            {activity.activity_name}
           </div>
           <div className="text-xs text-gray-600 truncate">
             {project?.project_name || activity.project}
@@ -90,7 +90,7 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
   const filteredActivities = useMemo(() => {
     return activities.filter(activity => {
       const matchesSearch = !searchTerm || 
-        activity.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        activity.activity_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         activity.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (activity.description && activity.description.toLowerCase().includes(searchTerm.toLowerCase()))
 
@@ -115,7 +115,7 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
     return Array.from(groups.entries()).map(([projectName, projectActivities]) => ({
       project: projectMap.get(projectName),
       projectName,
-      activities: projectActivities.sort((a, b) => a.subject.localeCompare(b.subject))
+      activities: projectActivities.sort((a, b) => a.activity_name.localeCompare(b.activity_name))
     }))
   }, [filteredActivities, projectMap])
 

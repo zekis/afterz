@@ -8,7 +8,7 @@ def get_projects():
         projects = frappe.get_all(
             'Project',
             fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
-            filters={'status': 'Active'},
+            filters={'status': ['not in', ['Closed', 'Cancelled']]},
             order_by='project_name asc'
         )
         
@@ -21,18 +21,18 @@ def get_projects():
 def get_activities(project=None):
     """Get activities, optionally filtered by project"""
     try:
-        filters = {'status': ['in', ['Open', 'In Progress']]}
+        filters = {'status': ['not in', ['Closed', 'In Progress']]}
         if project:
             filters['project'] = project
         
         activities = frappe.get_all(
             'Activity',
             fields=[
-                'name', 'subject', 'project', 'status', 'priority',
+                'name', 'activity_name', 'project', 'status', 'priority',
                 'location', 'description', 'assigned_to', 'estimated_hours'
             ],
             filters=filters,
-            order_by='subject asc'
+            order_by='activity_name asc'
         )
         
         return activities
@@ -70,7 +70,7 @@ def get_user_project_permissions(user=None):
         projects = frappe.get_all(
             'Project',
             fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
-            filters={'status': 'Active'},
+            filters={'status': ['not in', ['Closed', 'Cancelled']]}
         )
         
         return {
@@ -115,14 +115,14 @@ def get_user_assigned_activities(user=None):
         activities = frappe.get_all(
             'Activity',
             fields=[
-                'name', 'subject', 'project', 'status', 'priority',
+                'name', 'activity_name', 'project', 'status', 'priority',
                 'location', 'description', 'estimated_hours'
             ],
             filters={
                 'name': ['in', activity_names],
                 'status': ['in', ['Open', 'In Progress']]
             },
-            order_by='subject asc'
+            order_by='activity_name asc'
         )
         
         # Merge todo information with activity details
@@ -152,7 +152,7 @@ def get_assignable_activities(project_lead=None):
         projects = frappe.get_all(
             'Project',
             fields=['name'],
-            filters={'project_lead': project_lead, 'status': 'Active'}
+            filters={'project_lead': project_lead, 'status': ['not in', ['Closed', 'Cancelled']]}
         )
         
         if not projects:
@@ -164,14 +164,14 @@ def get_assignable_activities(project_lead=None):
         activities = frappe.get_all(
             'Activity',
             fields=[
-                'name', 'subject', 'project', 'status', 'priority',
+                'name', 'activity_name', 'project', 'status', 'priority',
                 'location', 'description', 'estimated_hours'
             ],
             filters={
                 'project': ['in', project_names],
                 'status': ['in', ['Open', 'In Progress']]
             },
-            order_by='project asc, subject asc'
+            order_by='project asc, activity_name asc'
         )
         
         return activities
@@ -221,7 +221,7 @@ def assign_activity_to_users(activity_name, user_list, priority="Medium", due_da
             # Create ToDo record
             todo_doc = frappe.get_doc({
                 'doctype': 'ToDo',
-                'description': notes or f"Work on: {activity.subject}",
+                'description': notes or f"Work on: {activity.activity_name}",
                 'reference_type': 'Activity',
                 'reference_name': activity_name,
                 'allocated_to': user,

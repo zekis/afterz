@@ -2,7 +2,7 @@ export interface Project {
   name: string;
   project_name: string;
   customer?: string;
-  status: 'Active' | 'On Hold' | 'Completed' | 'Cancelled';
+  status: 'Opportunity' | 'Estimate' | 'Open' | 'Archived';
   project_lead?: string;
   timesheet_approver?: string;
   division?: string;
@@ -13,9 +13,9 @@ export interface Project {
 
 export interface Activity {
   name: string;
-  subject: string;
+  activity_name: string;
   project: string;
-  status: 'Open' | 'In Progress' | 'Review' | 'Completed' | 'Cancelled';
+  status: 'Estimate' | 'Open' | 'Complete' | 'Closed' | 'Cancelled';
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   location?: string;
   description?: string;

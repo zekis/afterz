@@ -250,7 +250,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
                 .filter(activity => !formData.project || activity.project === formData.project)
                 .map(activity => (
                   <option key={activity.name} value={activity.name}>
-                    {activity.subject}
+                    {activity.activity_name}
                   </option>
                 ))}
             </select>

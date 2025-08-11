@@ -178,7 +178,7 @@ export class ProjectService {
     const response = await FrappeAPI.getList<Project>(
       'Project',
       ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type', 'timesheet_approver'],
-      { status: 'Active' },
+      { status: ['!=','Archived'] },
       'project_name asc'
     )
 
@@ -192,7 +192,7 @@ export class ProjectService {
       'Project',
       ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
       { 
-        status: 'Active',
+        status: ['!=','Archived'],
         project_lead: user
       },
       'project_name asc'
@@ -208,14 +208,14 @@ export class ActivityService {
     const response = await FrappeAPI.getList<Activity>(
       'Activity',
       [
-        'name', 'subject', 'project', 'status', 'priority', 
+        'name', 'activity_name', 'project', 'status', 'priority', 
         'location', 'description', 'assigned_to', 'estimated_hours'
       ],
       { 
         project: projectName,
-        status: ['in', ['Open', 'In Progress']]
+        status: ['not in', ['Closed', 'Cancelled']]
       },
-      'subject asc'
+      'activity_name asc'
     )
 
     return response.message
@@ -226,11 +226,11 @@ export class ActivityService {
     const response = await FrappeAPI.getList<Activity>(
       'Activity',
       [
-        'name', 'subject', 'project', 'status', 'priority', 
+        'name', 'activity_name', 'project', 'status', 'priority', 
         'location', 'description', 'assigned_to', 'estimated_hours'
       ],
-      { status: ['in', ['Open', 'In Progress']] },
-      'subject asc'
+      { status: ['not in', ['Closed', 'Cancelled']] },
+      'activity_name asc'
     )
 
     return response.message

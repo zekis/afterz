@@ -172,7 +172,9 @@ def get_approval_dashboard_data():
         projects = frappe.get_all(
             'Project',
             fields=['name'],
-            filters={'timesheet_approver': current_user, 'status': 'Active'}
+            filters={'timesheet_approver': current_user,
+                     'status': ['not in', ['Closed', 'Cancelled']]
+                     }
         )
         
         if not projects:
@@ -208,7 +210,7 @@ def get_users_with_submission_counts(start_date, end_date):
         projects = frappe.get_all(
             'Project',
             fields=['name'],
-            filters={'timesheet_approver': current_user, 'status': 'Active'}
+            filters={'timesheet_approver': current_user, 'status': ['not in', ['Closed', 'Cancelled']]}
         )
         
         if not projects:
@@ -306,7 +308,7 @@ def approve_all_entries(employee, start_date, end_date, approval_notes=None):
         projects = frappe.get_all(
             'Project',
             fields=['name'],
-            filters={'timesheet_approver': current_user, 'status': 'Active'}
+            filters={'timesheet_approver': current_user, 'status': ['not in', ['Closed', 'Cancelled']]}
         )
         
         if not projects:
@@ -450,7 +452,7 @@ def get_approval_dashboard_data(weeks_back=4):
         projects = frappe.get_all(
             'Project',
             fields=['name', 'project_name', 'timesheet_approver'],
-            filters={'timesheet_approver': current_user, 'status': 'Active'}
+            filters={'timesheet_approver': current_user, 'status': ['not in', ['Closed', 'Cancelled']]}
         )
         
         if not projects:
@@ -459,7 +461,7 @@ def get_approval_dashboard_data(weeks_back=4):
                 all_projects = frappe.get_all(
                     'Project',
                     fields=['name', 'project_name', 'timesheet_approver'],
-                    filters={'status': 'Active'}
+                    filters={'status': ['not in', ['Closed', 'Cancelled']]}
                 )
                 projects = all_projects
             
@@ -586,7 +588,7 @@ def get_user_pending_approvals(employee):
         projects = frappe.get_all(
             'Project',
             fields=['name'],
-            filters={'timesheet_approver': current_user, 'status': 'Active'}
+            filters={'timesheet_approver': current_user, 'status': ['not in', ['Closed', 'Cancelled']]}
         )
         
         # Also check if user is Administrator - they should see all projects
@@ -594,7 +596,7 @@ def get_user_pending_approvals(employee):
             projects = frappe.get_all(
                 'Project',
                 fields=['name'],
-                filters={'status': 'Active'}
+                filters={'status': ['not in', ['Closed', 'Cancelled']]}
             )
         
         if not projects:

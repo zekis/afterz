@@ -127,7 +127,7 @@ const ActivityAssignmentModal: React.FC<ActivityAssignmentModalProps> = ({
             <UserPlus className="w-6 h-6 text-blue-600" />
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Assign Activity</h2>
-              <p className="text-sm text-gray-600">{activity.subject}</p>
+              <p className="text-sm text-gray-600">{activity.activity_name}</p>
             </div>
           </div>
           <button

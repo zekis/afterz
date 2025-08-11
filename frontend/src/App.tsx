@@ -456,7 +456,7 @@ function App() {
           check_in_time: formatDateTimeForBackend(checkInTime),
           check_out_time: formatDateTimeForBackend(checkOutTime),
           duration_hours: 1,
-          description: `Working on: ${activity.subject}`,
+          description: `Working on: ${activity.activity_name}`,
         },
       ])
 
@@ -470,7 +470,7 @@ function App() {
           check_in_time: formatDateTimeForBackend(checkInTime),
           check_out_time: formatDateTimeForBackend(checkOutTime),
           duration_hours: 1,
-          description: `Working on: ${activity.subject}`,
+          description: `Working on: ${activity.activity_name}`,
           status: 'Draft',
         }).then(() => {
           console.log('DragEnd - Backend create successful, removing temp entry')
@@ -813,8 +813,8 @@ function App() {
         <DragOverlay>
           {draggedActivity && (
             <div className={`activity-item opacity-90 transform rotate-3 ${getActivityColor(draggedActivity.name).bg} ${getActivityColor(draggedActivity.name).border} ${getActivityColor(draggedActivity.name).text}`}>
-              <div className="font-medium text-sm">{draggedActivity.subject}</div>
-              <div className="text-xs text-gray-600">{draggedActivity.project}</div>
+              <div className="font-medium text-sm">{draggedActivity.activity_name}</div>
+              <div className="text-xs text-gray-600">{draggedActivity.activity_name}</div>
             </div>
           )}
           {draggedEntry && (

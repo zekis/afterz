@@ -149,7 +149,7 @@ const ManageAssignmentsModal: React.FC<ManageAssignmentsModalProps> = ({
   const filteredActivities = activities.filter(activity => {
     const matchesProject = !selectedProject || activity.project === selectedProject
     const matchesSearch = !searchTerm || 
-      activity.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.activity_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (activity.description && activity.description.toLowerCase().includes(searchTerm.toLowerCase()))
     
     return matchesProject && matchesSearch
@@ -241,7 +241,7 @@ const ManageAssignmentsModal: React.FC<ManageAssignmentsModalProps> = ({
                         }`}
                       >
                         <div className="font-medium text-sm text-gray-900 truncate">
-                          {activity.subject}
+                          {activity.activity_name}
                         </div>
                         <div className="text-xs text-gray-600 truncate">
                           {project?.project_name || activity.project}
@@ -269,7 +269,7 @@ const ManageAssignmentsModal: React.FC<ManageAssignmentsModalProps> = ({
             {selectedActivity ? (
               <>
                 <div className="p-4 border-b bg-gray-50">
-                  <h3 className="font-medium text-gray-900 mb-1">Assign: {selectedActivity.subject}</h3>
+                  <h3 className="font-medium text-gray-900 mb-1">Assign: {selectedActivity.activity_name}</h3>
                   <p className="text-sm text-gray-600">
                     {projects.find(p => p.name === selectedActivity.project)?.project_name}
                   </p>
