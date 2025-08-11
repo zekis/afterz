@@ -1,31 +1,46 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { Search, Folder, Activity as ActivityIcon } from 'lucide-react'
-import { Activity, Project } from '../../types'
-import { getPriorityColor } from '../../lib/utils'
+import { Activity, Project, User as UserType } from '../../types'
+import { getActivityColor } from '../../lib/utils'
+import AppModeToggle from '../Controls/AppModeToggle'
 
 interface ActivityPaletteProps {
   activities: Activity[]
   projects: Project[]
+  currentUser?: UserType
+  onAssignActivity?: (activity: Activity) => void
 }
 
 interface DraggableActivityProps {
   activity: Activity
   project?: Project
+  currentUser?: UserType
+  onAssignActivity?: (activity: Activity) => void
 }
 
-const DraggableActivity: React.FC<DraggableActivityProps> = ({ activity, project }) => {
+const DraggableActivity: React.FC<DraggableActivityProps> = ({ 
+  activity, 
+  project, 
+  currentUser, 
+  onAssignActivity 
+}) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: activity.name,
     data: { type: 'activity', activity }
   })
+
+  const activityColors = getActivityColor(activity.name)
+  
+  // Check if current user is project manager
+  const isProjectManager = currentUser && project?.project_manager === currentUser.name
 
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`activity-item ${isDragging ? 'opacity-30' : ''}`}
+      className={`activity-item ${activityColors.bg} ${activityColors.border} ${activityColors.text} ${isDragging ? 'opacity-30' : ''} relative`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -40,32 +55,27 @@ const DraggableActivity: React.FC<DraggableActivityProps> = ({ activity, project
               📍 {activity.location}
             </div>
           )}
+          
+          
         </div>
         
         <div className="flex flex-col items-end space-y-1 ml-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(activity.priority)}`}>
-            {activity.priority}
-          </span>
-          {activity.estimated_hours && (
-            <span className="text-xs text-gray-500">
-              {activity.estimated_hours}h
-            </span>
-          )}
         </div>
       </div>
       
-      {activity.description && (
-        <div className="mt-2 text-xs text-gray-600 line-clamp-2">
-          {activity.description}
-        </div>
-      )}
     </div>
   )
 }
 
-const ActivityPalette: React.FC<ActivityPaletteProps> = ({ activities, projects }) => {
+const ActivityPalette: React.FC<ActivityPaletteProps> = ({ 
+  activities, 
+  projects, 
+  currentUser, 
+  onAssignActivity 
+}) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProject, setSelectedProject] = useState<string>('')
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   // Create project lookup map
   const projectMap = useMemo(() => {
@@ -109,9 +119,25 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({ activities, projects 
     }))
   }, [filteredActivities, projectMap])
 
+  // Ensure newly discovered projects default to expanded
+  useEffect(() => {
+    setCollapsed(prev => {
+      const next = { ...prev }
+      groupedActivities.forEach(({ projectName }) => {
+        if (next[projectName] === undefined) next[projectName] = false
+      })
+      return next
+    })
+  }, [groupedActivities])
+
   return (
     <div className="bg-white rounded-lg shadow-sm border flex flex-col h-full">
       <div className="p-4 border-b flex-shrink-0">
+        <AppModeToggle 
+          currentMode="book" 
+          onModeChange={() => {}} 
+        />
+        
         <div className="flex items-center space-x-2 mb-4">
           <ActivityIcon className="w-5 h-5 text-blue-600" />
           <h3 className="font-semibold text-gray-900">Activities</h3>
@@ -162,25 +188,37 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({ activities, projects 
           <div className="space-y-4">
             {groupedActivities.map(({ project, projectName, activities }) => (
               <div key={projectName}>
-                <div className="flex items-center space-x-2 mb-2">
-                  <Folder className="w-4 h-4 text-gray-400" />
-                  <h4 className="font-medium text-sm text-gray-700">
-                    {project?.project_name || projectName}
-                  </h4>
+                <div
+                  className="flex items-center justify-between mb-2 cursor-pointer select-none"
+                  onClick={() => setCollapsed(prev => ({ ...prev, [projectName]: !prev[projectName] }))}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Folder className="w-4 h-4 text-gray-400" />
+                    <h4 className="font-medium text-sm text-gray-700">
+                      {project?.project_name || projectName}
+                    </h4>
+                    <span className="text-xs text-gray-500">
+                      ({activities.length})
+                    </span>
+                  </div>
                   <span className="text-xs text-gray-500">
-                    ({activities.length})
+                    {collapsed[projectName] ? '►' : '▼'}
                   </span>
                 </div>
                 
-                <div className="space-y-2 ml-6">
-                  {activities.map(activity => (
-                    <DraggableActivity
-                      key={activity.name}
-                      activity={activity}
-                      project={project}
-                    />
-                  ))}
-                </div>
+                {!collapsed[projectName] && (
+                  <div className="space-y-2 ml-6">
+                    {activities.map(activity => (
+                      <DraggableActivity
+                        key={activity.name}
+                        activity={activity}
+                        project={project}
+                        currentUser={currentUser}
+                        onAssignActivity={onAssignActivity}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

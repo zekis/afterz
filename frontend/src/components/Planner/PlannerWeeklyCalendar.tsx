@@ -1,23 +1,21 @@
 import React, { useMemo, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format } from 'date-fns'
-import { CalendarEvent, Project, Activity } from '../../types'
-import { getWeekData, getTimeSlots, formatTime, createTimeSlotId } from '../../lib/utils'
-import TimesheetEntry from './TimesheetEntry'
+import { Project } from '../../types'
+import { getWeekData, getTimeSlots, createTimeSlotId } from '../../lib/utils'
+import PlannerEntry, { PlannerCalendarEvent } from './PlannerEntry'
 import HistoryPanel from '../Common/HistoryPanel'
 
-interface WeeklyCalendarProps {
+interface PlannerWeeklyCalendarProps {
   currentWeek: Date
-  events: CalendarEvent[]
+  events: PlannerCalendarEvent[]
   viewMode: '6am-6pm' | 'full-day'
   onEventUpdate: () => void
   projects?: Project[]
-  activities?: Activity[]
   allEntries?: any[]
   onToastError?: (message: string) => void
-  onEntryClick?: (event: CalendarEvent, position: { x: number; y: number }) => void
+  onEntryClick?: (event: PlannerCalendarEvent, position: { x: number; y: number }) => void
   selectedEntryId?: string | null
-  onStatusChange?: () => void
 }
 
 interface DroppableTimeSlotProps {
@@ -27,39 +25,37 @@ interface DroppableTimeSlotProps {
   children: React.ReactNode
 }
 
-  const DroppableTimeSlot: React.FC<DroppableTimeSlotProps> = ({ slotId, dayIndex, hour, children }) => {
-    const { isOver, setNodeRef } = useDroppable({
-      id: slotId,
-      data: {
-        accepts: ['activity', 'timesheet-entry', 'todo']
-      }
-    })
-  
-    const topPosition = hour * 60 // 60px per hour
-  
-    return (
-      <div
-        ref={setNodeRef}
-        className={`time-slot ${isOver ? 'bg-blue-400 bg-opacity-40' : ''}`}
-        style={{ top: `${topPosition}px` }}
-      >
-        {children}
-      </div>
-    )
-  }
+const DroppableTimeSlot: React.FC<DroppableTimeSlotProps> = ({ slotId, dayIndex, hour, children }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: slotId,
+    data: {
+      accepts: ['todo', 'planner-entry']
+    }
+  })
 
-const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ 
-  currentWeek, 
-  events, 
-  viewMode, 
+  const topPosition = hour * 60 // 60px per hour
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`time-slot ${isOver ? 'bg-indigo-400 bg-opacity-40' : ''}`}
+      style={{ top: `${topPosition}px` }}
+    >
+      {children}
+    </div>
+  )
+}
+
+const PlannerWeeklyCalendar: React.FC<PlannerWeeklyCalendarProps> = ({
+  currentWeek,
+  events,
+  viewMode,
   onEventUpdate,
   projects = [],
-  activities = [],
   allEntries = [],
   onToastError,
   onEntryClick,
-  selectedEntryId,
-  onStatusChange
+  selectedEntryId
 }) => {
   const weekData = getWeekData(currentWeek)
   const startHour = viewMode === '6am-6pm' ? 6 : 0
@@ -72,23 +68,23 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   const positionedEvents = useMemo(() => {
     return events.map(event => {
       const eventDate = new Date(event.start)
-      const dayIndex = weekData.days.findIndex(day => 
+      const dayIndex = weekData.days.findIndex(day =>
         day.toDateString() === eventDate.toDateString()
       )
-      
+
       if (dayIndex === -1) return null
-      
+
       const eventHour = eventDate.getHours()
       const eventMinutes = eventDate.getMinutes()
-      
+
       // Calculate position relative to the start hour
       const relativeHour = eventHour - startHour
       const topPosition = (relativeHour * hourHeight) + (eventMinutes * hourHeight / 60)
-      
+
       // Calculate height based on duration
-      const duration = event.duration || 1
+      const duration = event.duration || (event.end ? Math.max(0.1, (event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60)) : 1)
       const height = Math.max(30, duration * hourHeight) // Minimum 30px (0.5 hour)
-      
+
       return {
         ...event,
         dayIndex,
@@ -96,7 +92,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         height,
         isVisible: eventHour >= startHour && eventHour <= endHour
       }
-    }).filter(event => event && event.isVisible)
+    }).filter((event: any) => event && event.isVisible) as (PlannerCalendarEvent & { dayIndex: number; topPosition: number; height: number; isVisible: boolean })[]
   }, [events, weekData.days, startHour, endHour, hourHeight])
 
   return (
@@ -106,12 +102,9 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         <div className="p-3 font-medium text-sm text-gray-700">
           Time
         </div>
-        
-        {weekData.days.map((day, dayIndex) => (
-          <div
-            key={day.toISOString()}
-            className="p-3 text-center"
-          >
+
+        {weekData.days.map((day: Date) => (
+          <div key={day.toISOString()} className="p-3 text-center">
             <div className="font-medium text-sm text-gray-900">
               {format(day, 'EEE')}
             </div>
@@ -139,7 +132,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
         {/* Day Columns */}
         <div className="day-columns">
-          {weekData.days.map((day, dayIndex) => (
+          {weekData.days.map((day: Date, dayIndex: number) => (
             <div key={day.toISOString()} className="day-column">
               {/* Hour Lines */}
               <div className="hour-lines">
@@ -162,37 +155,34 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                     dayIndex={dayIndex}
                     hour={index}
                   >
-                    {/* This is where drag targets are, but events are positioned separately */}
+                    <></>
                   </DroppableTimeSlot>
                 )
               })}
 
-              {/* Positioned Timesheet Entries */}
+              {/* Positioned Planner Entries */}
               {positionedEvents
-                .filter(event => event.dayIndex === dayIndex)
+                .filter(event => (event as any).dayIndex === dayIndex)
                 .map(event => (
                   <div
                     key={event.id}
                     style={{
                       position: 'absolute',
-                      top: `${event.topPosition}px`,
-                      height: `${event.height}px`,
+                      top: `${(event as any).topPosition}px`,
+                      height: `${(event as any).height}px`,
                       left: '2px',
                       right: '2px',
                       zIndex: 10
                     }}
                   >
-                    <TimesheetEntry
+                    <PlannerEntry
                       event={event}
                       onUpdate={onEventUpdate}
                       hourHeight={hourHeight}
-                      projects={projects}
-                      activities={activities}
                       allEntries={allEntries}
                       onToastError={onToastError}
                       onEntryClick={onEntryClick}
                       isSelected={selectedEntryId === event.id}
-                      onStatusChange={onStatusChange}
                     />
                   </div>
                 ))}
@@ -207,15 +197,18 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           <div className="text-gray-600">
             Week of {format(weekData.startDate, 'MMM d')} - {format(weekData.endDate, 'MMM d, yyyy')}
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="text-gray-600">
-              Total Entries: <span className="font-medium">{events.length}</span>
+              Total Items: <span className="font-medium">{events.length}</span>
             </div>
-            
+
             <div className="text-gray-600">
               Total Hours: <span className="font-medium">
-                {events.reduce((total, event) => total + (event.duration || 0), 0).toFixed(1)}
+                {events.reduce((total, ev) => {
+                  const d = ev.duration || (ev.end ? Math.max(0.0, (ev.end.getTime() - ev.start.getTime()) / (1000 * 60 * 60)) : 1)
+                  return total + d
+                }, 0).toFixed(1)}
               </span>
             </div>
           </div>
@@ -226,4 +219,4 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   )
 }
 
-export default WeeklyCalendar
+export default PlannerWeeklyCalendar

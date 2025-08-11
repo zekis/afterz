@@ -11,15 +11,15 @@ app_license = "mit"
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "afterz",
-# 		"logo": "/assets/afterz/logo.png",
-# 		"title": "Afterz",
-# 		"route": "/afterz",
-# 		"has_permission": "afterz.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": "afterz",
+		"logo": "/assets/afterz/afterz.png",
+		"title": "Afterz",
+		"route": "/afterz",
+		"has_permission": "afterz.api.has_app_permission"
+	}
+]
 
 # Includes in <head>
 # ------------------
@@ -241,4 +241,3 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-

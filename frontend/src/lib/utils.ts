@@ -106,10 +106,29 @@ export function getStatusColor(status: string): string {
       return 'bg-red-100 border-red-300 text-red-700'
     case 'Scheduled':
       return 'bg-yellow-100 border-yellow-300 text-yellow-700'
-    case 'Paid':
+    case 'Processed':
       return 'bg-purple-100 border-purple-300 text-purple-700'
     default:
       return 'bg-gray-100 border-gray-300 text-gray-700'
+  }
+}
+
+export function getStatusDisplayText(status: string): string {
+  switch (status) {
+    case 'Draft':
+      return 'Draft'
+    case 'Submitted':
+      return 'Submitted'
+    case 'Approved':
+      return 'Approved'
+    case 'Rejected':
+      return 'Rejected'
+    case 'Scheduled':
+      return 'Scheduled'
+    case 'Processed':
+      return '$ Processed'
+    default:
+      return status
   }
 }
 
@@ -126,4 +145,77 @@ export function getPriorityColor(priority: string): string {
     default:
       return 'bg-gray-100 text-gray-800'
   }
+}
+
+// Overlap detection utilities
+export function checkTimeOverlap(
+  start1: Date, 
+  end1: Date, 
+  start2: Date, 
+  end2: Date
+): boolean {
+  // Two time ranges overlap if one starts before the other ends
+  return start1 < end2 && start2 < end1
+}
+
+export function findOverlappingEntries(
+  entries: any[], 
+  targetStart: Date, 
+  targetEnd: Date, 
+  excludeId?: string
+): any[] {
+  return entries.filter(entry => {
+    // Skip the entry we're currently moving/resizing
+    if (excludeId && entry.name === excludeId) {
+      return false
+    }
+    
+    const entryStart = parseDateTime(entry.check_in_time)
+    const entryEnd = entry.check_out_time 
+      ? parseDateTime(entry.check_out_time)
+      : new Date(entryStart.getTime() + (entry.duration_hours || 1) * 60 * 60 * 1000)
+    
+    return checkTimeOverlap(targetStart, targetEnd, entryStart, entryEnd)
+  })
+}
+
+export function isTimeSlotAvailable(
+  entries: any[],
+  targetDate: Date,
+  targetHour: number,
+  durationHours: number = 1,
+  excludeId?: string
+): boolean {
+  const targetStart = createLocalDateTime(targetDate, targetHour, 0)
+  const targetEnd = new Date(targetStart.getTime() + durationHours * 60 * 60 * 1000)
+  
+  const overlapping = findOverlappingEntries(entries, targetStart, targetEnd, excludeId)
+  return overlapping.length === 0
+}
+
+// Activity color utilities
+const ACTIVITY_COLORS = [
+  { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-700', header: 'bg-blue-200' },
+  { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-700', header: 'bg-green-200' },
+  { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-700', header: 'bg-purple-200' },
+  { bg: 'bg-pink-100', border: 'border-pink-300', text: 'text-pink-700', header: 'bg-pink-200' },
+  { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-700', header: 'bg-yellow-200' },
+  { bg: 'bg-indigo-100', border: 'border-indigo-300', text: 'text-indigo-700', header: 'bg-indigo-200' },
+  { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-700', header: 'bg-red-200' },
+  { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-700', header: 'bg-orange-200' },
+  { bg: 'bg-teal-100', border: 'border-teal-300', text: 'text-teal-700', header: 'bg-teal-200' },
+  { bg: 'bg-cyan-100', border: 'border-cyan-300', text: 'text-cyan-700', header: 'bg-cyan-200' },
+]
+
+export function getActivityColor(activityName: string) {
+  // Use a simple hash function to consistently assign colors based on activity name
+  let hash = 0
+  for (let i = 0; i < activityName.length; i++) {
+    const char = activityName.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  
+  const colorIndex = Math.abs(hash) % ACTIVITY_COLORS.length
+  return ACTIVITY_COLORS[colorIndex]
 }

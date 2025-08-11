@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "Beforez - Planner" }}</title>
+    <meta name="description" content="{{ description or 'Plan first, execute better' }}">
+    
+    <link rel="icon" type="image/x-icon" href="/assets/frappe/images/frappe-favicon.svg">
+    
+    {% if frappe.conf.developer_mode %}
+    <script>
+        console.log('Beforez: Loading in development mode from Vite dev server');
+    </script>
+    {% else %}
+    <link rel="stylesheet" href="/assets/afterz/frontend/index.css">
+    <script>
+        console.log('Beforez: Loading in production mode from built assets');
+    </script>
+    {% endif %}
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f9fafb;">
+            <div style="text-align: center;">
+                <div style="width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top: 3px solid #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+                <p style="color: #6b7280; font-family: system-ui, -apple-system, sans-serif;">Loading Beforez Planner...</p>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <script>
+        // Inject Frappe context before React loads
+        window.frappe_boot = {{ boot | tojson }};
+        window.frappeBootAvailable = true;
+
+        var fullName = (window.frappe_boot && window.frappe_boot.user) ? window.frappe_boot.user.full_name : '';
+        console.log('Beforez boot:', !!window.frappe_boot, fullName);
+    </script>
+    
+    {% if frappe.conf.developer_mode %}
+    <script type="module" src="http://localhost:8080/src/main.tsx"></script>
+    {% else %}
+    <script type="module" src="/assets/afterz/frontend/index.js"></script>
+    {% endif %}
+
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error('Beforez error:', e.error);
+        });
+    </script>
+</body>
+</html>

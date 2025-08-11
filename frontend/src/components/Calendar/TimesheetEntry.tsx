@@ -1,11 +1,14 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useDraggable } from '@dnd-kit/core'
-import { Clock, Edit, Trash2, Square, GripHorizontal, Move } from 'lucide-react'
+import { Clock, Edit, Trash2, Square, GripHorizontal, Move, Send, CheckCircle, XCircle, Check, FileText } from 'lucide-react'
 import { CalendarEvent } from '../../types'
-import { getStatusColor, formatTime, formatDateTimeForBackend } from '../../lib/utils'
+import { getStatusColor, getStatusDisplayText, formatTime, formatDateTimeForBackend, findOverlappingEntries, getActivityColor } from '../../lib/utils'
 import { TimesheetService } from '../../services/timesheetService'
+import { HistoryService } from '../../services/historyService'
 import EditTimesheetModal from './EditTimesheetModal'
+import ContextMenu from '../Common/ContextMenu'
+import ConfirmationDialog from '../Common/ConfirmationDialog'
 
 interface TimesheetEntryProps {
   event: CalendarEvent
@@ -14,6 +17,11 @@ interface TimesheetEntryProps {
   hourHeight?: number
   projects?: any[]
   activities?: any[]
+  allEntries?: any[]
+  onToastError?: (message: string) => void
+  onEntryClick?: (event: CalendarEvent, position: { x: number; y: number }) => void
+  isSelected?: boolean
+  onStatusChange?: () => void // Add callback for status changes
 }
 
 const TimesheetEntry: React.FC<TimesheetEntryProps> = ({ 
@@ -22,7 +30,12 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
   slotHeight = 60,
   hourHeight = 60,
   projects = [],
-  activities = []
+  activities = [],
+  allEntries = [],
+  onToastError,
+  onEntryClick,
+  isSelected = false,
+  onStatusChange
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -30,23 +43,251 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
   const [resizeType, setResizeType] = useState<'top' | 'bottom' | null>(null)
   const [resizeTooltip, setResizeTooltip] = useState<{ time: string; duration: string } | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; position: { x: number; y: number } }>({
+    isOpen: false,
+    position: { x: 0, y: 0 }
+  })
+  // Confirmation dialog state
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    isOpen: boolean
+    type: 'submit' | 'approve' | 'reject' | 'unapprove' | 'delete'
+    title: string
+    message: string
+    requiresInput?: boolean
+    inputLabel?: string
+    inputPlaceholder?: string
+  }>({
+    isOpen: false,
+    type: 'submit',
+    title: '',
+    message: ''
+  })
+  // Hover + modifier for header cursor feedback (copy vs move)
+  const [isHeaderHovered, setIsHeaderHovered] = useState(false)
+  const [isShiftDown, setIsShiftDown] = useState(false)
   const entryRef = useRef<HTMLDivElement>(null)
   const startY = useRef<number>(0)
   const startHeight = useRef<number>(0)
   const startTop = useRef<number>(0)
 
-  // Draggable functionality
+  // Draggable functionality - only enable for draft entries
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `entry-${event.id}`,
     data: {
       type: 'timesheet-entry',
       event: event
-    }
+    },
+    disabled: event.status !== 'Draft'
   })
 
-  const handleEdit = (e: React.MouseEvent) => {
+  const handleEdit = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (event.status === 'Draft') {
+      setIsEditModalOpen(true)
+    }
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (onEntryClick) {
+      onEntryClick(event, { x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsEditModalOpen(true)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY }
+    })
+  }
+
+  // Dialog handlers
+  const showSubmitDialog = () => {
+    setConfirmationDialog({
+      isOpen: true,
+      type: 'submit',
+      title: 'Submit Entry',
+      message: `Are you sure you want to submit this timesheet entry for approval?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
+    })
+  }
+
+  const showApproveDialog = () => {
+    setConfirmationDialog({
+      isOpen: true,
+      type: 'approve',
+      title: 'Approve Entry',
+      message: `Are you sure you want to approve this timesheet entry?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
+    })
+  }
+
+  const showRejectDialog = () => {
+    setConfirmationDialog({
+      isOpen: true,
+      type: 'reject',
+      title: 'Reject Entry',
+      message: `Please provide a reason for rejecting this timesheet entry:\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`,
+      requiresInput: true,
+      inputLabel: 'Rejection Reason',
+      inputPlaceholder: 'Please explain why this entry is being rejected...'
+    })
+  }
+
+  const showUnapproveDialog = () => {
+    setConfirmationDialog({
+      isOpen: true,
+      type: 'unapprove',
+      title: 'Un-approve Entry',
+      message: `Are you sure you want to un-approve this entry and revert it to draft status?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours`
+    })
+  }
+
+  const showDeleteDialog = () => {
+    setConfirmationDialog({
+      isOpen: true,
+      type: 'delete',
+      title: 'Delete Entry',
+      message: `Are you sure you want to permanently delete this timesheet entry?\n\nEntry: ${event.title}\nProject: ${event.project}\nDuration: ${(event.duration || 0).toFixed(1)} hours\n\nThis action cannot be undone.`
+    })
+  }
+
+  const handleConfirmAction = async (data?: string) => {
+    try {
+      setIsLoading(true)
+      
+      switch (confirmationDialog.type) {
+        case 'submit':
+          await TimesheetService.updateTimesheetEntry(event.id, { status: 'Submitted' })
+          break
+        case 'approve':
+          await TimesheetService.updateTimesheetEntry(event.id, { 
+            status: 'Approved',
+            approved_by: window.frappe_boot?.user.name || '',
+            approval_date: formatDateTimeForBackend(new Date())
+          })
+          break
+        case 'reject':
+          if (data) {
+            await TimesheetService.rejectEntryWithReason(event.id, data)
+            await HistoryService.addComment('Timesheet Entry', event.id, `Entry rejected: ${data}`)
+          }
+          break
+        case 'unapprove':
+          await TimesheetService.unapproveEntry(event.id)
+          break
+        case 'delete':
+          await TimesheetService.deleteTimesheetEntry(event.id)
+          break
+      }
+      
+      onUpdate()
+      onStatusChange?.() // Trigger history refresh
+    } catch (error) {
+      console.error(`Failed to ${confirmationDialog.type} entry:`, error)
+      if (onToastError) {
+        onToastError(`Failed to ${confirmationDialog.type} entry. Please try again.`)
+      }
+      throw error // Re-throw to let dialog handle loading state
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Track Shift key globally to update cursor while hovering header (before drag starts)
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftDown(true)
+    }
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftDown(false)
+    }
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    return () => {
+      window.removeEventListener('keydown', onDown)
+      window.removeEventListener('keyup', onUp)
+    }
+  }, [])
+
+  // When hovering the draggable header, reflect Shift with copy cursor; otherwise move/default
+  useEffect(() => {
+    if (isHeaderHovered) {
+      document.body.style.cursor = isShiftDown && (event.status === 'Draft') ? 'copy' : (event.status === 'Draft' ? 'move' : 'default')
+    }
+    // Cleanup on unmount to avoid stuck cursors (mouseleave also resets)
+    return () => {}
+  }, [isHeaderHovered, isShiftDown, event.status])
+
+  // Get context menu items based on entry status and user permissions
+  const getContextMenuItems = () => {
+    const items = []
+
+    // View details for non-draft entries
+    if (event.status !== 'Draft') {
+      items.push({
+        label: 'View Details',
+        onClick: () => setIsEditModalOpen(true),
+        icon: <FileText className="w-4 h-4" />
+      })
+    }
+
+    // Always show edit for draft entries
+    if (event.status === 'Draft') {
+      items.push({
+        label: 'Edit Entry',
+        onClick: () => handleEdit(),
+        icon: <Edit className="w-4 h-4" />
+      })
+
+      items.push({
+        label: 'Submit Entry',
+        onClick: showSubmitDialog,
+        icon: <Send className="w-4 h-4" />
+      })
+
+      items.push({
+        label: 'Delete Entry',
+        onClick: showDeleteDialog,
+        icon: <Trash2 className="w-4 h-4" />,
+        className: 'text-red-600 hover:bg-red-50'
+      })
+    }
+
+    // Show approval options for submitted entries (if user has permissions)
+    if (event.status === 'Submitted') {
+      items.push({
+        label: 'Approve Entry',
+        onClick: showApproveDialog,
+        icon: <CheckCircle className="w-4 h-4" />,
+        className: 'text-green-600 hover:bg-green-50'
+      })
+
+      items.push({
+        label: 'Reject Entry',
+        onClick: showRejectDialog,
+        icon: <XCircle className="w-4 h-4" />,
+        className: 'text-red-600 hover:bg-red-50'
+      })
+    }
+
+    // Show un-approve option for approved entries (if user has permissions)
+    if (event.status === 'Approved') {
+      items.push({
+        label: 'Un-approve Entry',
+        onClick: showUnapproveDialog,
+        icon: <XCircle className="w-4 h-4" />,
+        className: 'text-orange-600 hover:bg-orange-50'
+      })
+    }
+
+    return items
   }
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -68,9 +309,10 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
     }
   }
 
-
-  // Resize functionality
+  // Resize functionality - only for draft entries
   const handleResizeStart = useCallback((e: React.MouseEvent, type: 'top' | 'bottom') => {
+    if (event.status !== 'Draft') return
+    
     e.preventDefault()
     e.stopPropagation()
     
@@ -220,6 +462,25 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         entryRef.current.style.transform = ''
         return
       }
+
+      // Check for overlaps with other entries (excluding the current entry)
+      const overlappingEntries = findOverlappingEntries(
+        allEntries,
+        newStartTime,
+        newEndTime,
+        event.id
+      )
+
+      if (overlappingEntries.length > 0) {
+        console.log('Resize blocked: overlapping entries found', overlappingEntries)
+        if (onToastError) {
+          onToastError('Cannot resize entry: would overlap with existing entries.')
+        }
+        // Reset styles and exit
+        entryRef.current.style.height = ''
+        entryRef.current.style.transform = ''
+        return
+      }
       
       try {
         setIsLoading(true)
@@ -271,18 +532,47 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
 
   const isActive = event.status === 'Draft' && !event.end
   const duration = event.duration || 0
-  const statusColors = getStatusColor(event.status)
+  const activityColors = getActivityColor(event.activity)
+  
+  // Get status-based styling
+  const getStatusStyling = () => {
+    if (event.status === 'Draft') {
+      // Use activity colors for draft entries
+      return {
+        bg: activityColors.bg,
+        border: activityColors.border,
+        text: activityColors.text,
+        header: activityColors.header,
+        opacity: ''
+      }
+    } else {
+      // Use grey styling for all non-draft entries
+      return {
+        bg: 'bg-gray-200',
+        border: 'border-gray-400',
+        text: 'text-gray-700',
+        header: 'bg-gray-300',
+        opacity: 'opacity-80'
+      }
+    }
+  }
+  
+  const statusStyling = getStatusStyling()
+  const isEditable = event.status === 'Draft'
 
   return (
     <div
       ref={entryRef}
-      className={`absolute inset-0 bg-blue-100 border border-blue-300 rounded text-xs cursor-pointer hover:bg-blue-200 transition-colors shadow-sm ${statusColors} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'}`}
+      className={`absolute inset-0 ${statusStyling.bg} ${isSelected ? 'border-2 border-blue-500' : statusStyling.border} rounded text-xs ${isEditable ? 'cursor-pointer hover:opacity-90' : 'cursor-default'} transition-opacity shadow-sm ${statusStyling.text} ${statusStyling.opacity} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'} ${isSelected ? 'shadow-lg' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      title={`${event.title} - ${event.project}`}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
+      title={`${event.title} - ${event.project} (${event.status}) ${isEditable ? '(Click for history, Double-click to edit, right-click for options)' : '(Click for history, Double-click to view, right-click for options)'}`}
     >
-      {/* Top resize handle */}
-      {(isHovered || isResizing) && !isActive && (
+      {/* Top resize handle - only for draft entries */}
+      {(isHovered || isResizing) && !isActive && isEditable && (
         <div
           className="absolute -top-1 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center hover:bg-blue-500 hover:bg-opacity-20 group"
           onMouseDown={(e) => handleResizeStart(e, 'top')}
@@ -294,13 +584,52 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
       {/* Entry header (draggable area) */}
       <div
         ref={setNodeRef}
-        {...listeners}
-        {...attributes}
-        className="px-1 py-0.5 bg-blue-200 rounded-t cursor-move select-none"
-        title="Drag to move entry"
+        {...(isEditable ? listeners : {})}
+        {...(isEditable ? attributes : {})}
+        className={`px-1 py-0.5 ${statusStyling.header} rounded-t ${isEditable ? 'cursor-move' : 'cursor-default'} select-none relative`}
+        title={isEditable ? "Drag to move entry" : ""}
+        onMouseEnter={() => {
+          setIsHeaderHovered(true)
+          document.body.style.cursor = isShiftDown && isEditable ? 'copy' : (isEditable ? 'move' : 'default')
+        }}
+        onMouseLeave={() => {
+          setIsHeaderHovered(false)
+          document.body.style.cursor = ''
+        }}
       >
         <div className="font-semibold text-xs truncate">{event.title}</div>
-        <div className="text-xs text-blue-900 truncate">{event.project}</div>
+        <div className={`text-xs ${statusStyling.text} truncate`}>{event.project}</div>
+        
+        {/* Status Badge */}
+        {event.status !== 'Draft' && (
+          <div className="absolute top-0.5 right-0.5">
+            {event.status === 'Submitted' && (
+              <div className="bg-blue-500 text-white p-1 rounded-full" title="Submitted">
+                <Send className="w-3 h-3" />
+              </div>
+            )}
+            {event.status === 'Approved' && (
+              <div className="bg-green-500 text-white p-1 rounded-full" title="Approved">
+                <Check className="w-3 h-3" />
+              </div>
+            )}
+            {event.status === 'Processed' && (
+              <div className="bg-purple-500 text-white px-1.5 py-0.5 rounded-full text-xs font-bold" title="Processed">
+                $
+              </div>
+            )}
+            {event.status === 'Rejected' && (
+              <div className="bg-red-500 text-white p-1 rounded-full" title="Rejected">
+                <XCircle className="w-3 h-3" />
+              </div>
+            )}
+            {event.status === 'Scheduled' && (
+              <div className="bg-yellow-500 text-white p-1 rounded-full" title="Scheduled">
+                <Clock className="w-3 h-3" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Only show time details for entries longer than 1 hour to prevent crowding */}
@@ -319,8 +648,8 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         </div>
       )}
 
-      {/* Action buttons - show on hover */}
-      {isHovered && !isLoading && !isResizing && (
+      {/* Action buttons - show on hover for draft entries only */}
+      {isHovered && !isLoading && !isResizing && isEditable && (
         <div className="flex items-center space-x-1 ml-2 absolute top-1 right-1 z-20">
           <button
             onClick={handleEdit}
@@ -330,7 +659,7 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
             <Edit className="w-3 h-3" />
           </button>
           <button
-            onClick={handleDelete}
+            onClick={showDeleteDialog}
             className="p-1 hover:bg-red-500 hover:bg-opacity-20 rounded"
             title="Delete"
           >
@@ -339,8 +668,8 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         </div>
       )}
 
-      {/* Bottom resize handle */}
-      {(isHovered || isResizing) && !isActive && (
+      {/* Bottom resize handle - only for draft entries */}
+      {(isHovered || isResizing) && !isActive && isEditable && (
         <div
           className="absolute -bottom-1 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center hover:bg-blue-500 hover:bg-opacity-20 group"
           onMouseDown={(e) => handleResizeStart(e, 'bottom')}
@@ -350,7 +679,7 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
       )}
 
       {/* Description tooltip on hover - rendered as portal */}
-      {event.description && isHovered && !isResizing && entryRef.current && createPortal(
+      {event.description && isHovered && !isResizing && !isEditModalOpen && entryRef.current && createPortal(
         <div
           className="timesheet-tooltip"
           style={{
@@ -400,7 +729,7 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit/View Modal */}
       <EditTimesheetModal
         event={event}
         isOpen={isEditModalOpen}
@@ -408,6 +737,28 @@ const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
         onUpdate={onUpdate}
         projects={projects}
         activities={activities}
+        readOnly={event.status !== 'Draft'}
+      />
+
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        items={getContextMenuItems()}
+        onClose={() => setContextMenu({ isOpen: false, position: { x: 0, y: 0 } })}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmationDialog.isOpen}
+        onClose={() => setConfirmationDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleConfirmAction}
+        title={confirmationDialog.title}
+        message={confirmationDialog.message}
+        type={confirmationDialog.type}
+        requiresInput={confirmationDialog.requiresInput}
+        inputLabel={confirmationDialog.inputLabel}
+        inputPlaceholder={confirmationDialog.inputPlaceholder}
       />
     </div>
   )

@@ -12,6 +12,7 @@ interface EditTimesheetModalProps {
   onUpdate: () => void
   projects: Project[]
   activities: Activity[]
+  readOnly?: boolean
 }
 
 const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
@@ -20,8 +21,10 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
   onClose,
   onUpdate,
   projects,
-  activities
+  activities,
+  readOnly
 }) => {
+  const isReadOnly = !!readOnly
   const [formData, setFormData] = useState({
     project: '',
     activity: '',
@@ -190,7 +193,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-lg font-semibold text-gray-900">
-            Edit Timesheet Entry
+            {isReadOnly ? 'View Timesheet Entry' : 'Edit Timesheet Entry'}
             <span className="ml-2 text-base font-normal text-gray-500">
               {event.start
                 ? event.start.toLocaleDateString(undefined, { day: 'numeric', month: 'numeric', year: 'numeric' })
@@ -218,6 +221,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
             <select
               value={formData.project}
               onChange={(e) => handleInputChange('project', e.target.value)}
+              disabled={isReadOnly}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select a project...</option>
@@ -238,6 +242,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
             <select
               value={formData.activity}
               onChange={(e) => handleInputChange('activity', e.target.value)}
+              disabled={isReadOnly}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select an activity...</option>
@@ -262,6 +267,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
                 type="time"
                 value={formData.startTime}
                 onChange={(e) => handleInputChange('startTime', e.target.value)}
+                disabled={isReadOnly}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -274,6 +280,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
                 type="time"
                 value={formData.endTime}
                 onChange={(e) => handleInputChange('endTime', e.target.value)}
+                disabled={isReadOnly}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -300,6 +307,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe what you worked on..."
               rows={3}
+              readOnly={isReadOnly}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             />
           </div>
@@ -314,6 +322,7 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
               onChange={(e) => handleInputChange('notes', e.target.value)}
               placeholder="Any additional notes or comments..."
               rows={2}
+              readOnly={isReadOnly}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             />
           </div>
@@ -328,20 +337,31 @@ const EditTimesheetModal: React.FC<EditTimesheetModalProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-end space-x-3 p-6 border-t bg-gray-50 rounded-b-lg">
-          <button
-            onClick={onClose}
-            disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </button>
+          {isReadOnly ? (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Close
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onClose}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

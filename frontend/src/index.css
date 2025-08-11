@@ -18,7 +18,7 @@
   }
   
   .calendar-header {
-    @apply grid grid-cols-8 bg-gray-50 border-b border-gray-200;
+    @apply grid grid-cols-8 bg-gray-50 border-b border-gray-300;
     grid-template-columns: 80px repeat(7, 1fr);
   }
   
@@ -28,7 +28,7 @@
   }
   
   .time-labels {
-    @apply absolute left-0 top-0 w-20 h-full bg-gray-50 border-r border-gray-200;
+    @apply absolute left-0 top-0 w-20 h-full bg-gray-50 border-r border-gray-300;
   }
   
   .time-label {
@@ -44,7 +44,7 @@
   }
   
   .day-column {
-    @apply relative border-r border-gray-200 last:border-r-0;
+    @apply relative border-r border-gray-300 last:border-r-0;
   }
   
   .hour-lines {
@@ -52,7 +52,7 @@
   }
   
   .hour-line {
-    @apply absolute left-0 right-0 border-t border-gray-100;
+    @apply absolute left-0 right-0 border-t border-gray-200;
     height: 1px;
   }
   

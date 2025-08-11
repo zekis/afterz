@@ -8,30 +8,30 @@ interface ViewToggleProps {
 
 const ViewToggle: React.FC<ViewToggleProps> = ({ viewMode, onViewModeChange }) => {
   return (
-    <div className="flex items-center bg-gray-100 rounded-lg p-1">
-      <button
-        onClick={() => onViewModeChange('6am-6pm')}
-        className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm transition-colors ${
-          viewMode === '6am-6pm'
-            ? 'bg-white text-gray-900 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
-        }`}
-      >
-        <Clock className="w-4 h-4" />
-        <span>6AM - 6PM</span>
-      </button>
-      
-      <button
-        onClick={() => onViewModeChange('full-day')}
-        className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm transition-colors ${
-          viewMode === 'full-day'
-            ? 'bg-white text-gray-900 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
-        }`}
-      >
-        <Sun className="w-4 h-4" />
-        <span>Full Day</span>
-      </button>
+    <div className="flex items-center space-x-2">
+      <Clock className="w-4 h-4 text-white text-opacity-70" />
+      <div className="flex bg-white bg-opacity-20 rounded-lg p-1 backdrop-blur-sm">
+        <button
+          onClick={() => onViewModeChange('6am-6pm')}
+          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+            viewMode === '6am-6pm'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-white text-opacity-90 hover:text-white hover:bg-white hover:bg-opacity-10'
+          }`}
+        >
+          6AM - 6PM
+        </button>
+        <button
+          onClick={() => onViewModeChange('full-day')}
+          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+            viewMode === 'full-day'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-white text-opacity-90 hover:text-white hover:bg-white hover:bg-opacity-10'
+          }`}
+        >
+          Full Day
+        </button>
+      </div>
     </div>
   )
 }
