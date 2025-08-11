@@ -177,7 +177,7 @@ export class ProjectService {
   static async getActiveProjects(): Promise<Project[]> {
     const response = await FrappeAPI.getList<Project>(
       'Project',
-      ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'work_type', 'timesheet_approver'],
+      ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type', 'timesheet_approver'],
       { status: 'Active' },
       'project_name asc'
     )
@@ -190,7 +190,7 @@ export class ProjectService {
   static async getUserProjects(user: string): Promise<Project[]> {
     const response = await FrappeAPI.getList<Project>(
       'Project',
-      ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'work_type'],
+      ['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
       { 
         status: 'Active',
         project_lead: user
