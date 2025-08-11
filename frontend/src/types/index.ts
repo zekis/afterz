@@ -6,7 +6,7 @@ export interface Project {
   project_lead?: string;
   timesheet_approver?: string;
   division?: string;
-  work_type?: string;
+  project_type?: string;
   start_date?: string;
   end_date?: string;
 }

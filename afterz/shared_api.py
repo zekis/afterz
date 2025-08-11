@@ -7,7 +7,7 @@ def get_projects():
     try:
         projects = frappe.get_all(
             'Project',
-            fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'work_type'],
+            fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
             filters={'status': 'Active'},
             order_by='project_name asc'
         )
@@ -69,7 +69,7 @@ def get_user_project_permissions(user=None):
         
         projects = frappe.get_all(
             'Project',
-            fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'work_type'],
+            fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
             filters={'status': 'Active'},
         )
         
