@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useDraggable } from '@dnd-kit/core'
-import { Clock, CheckCircle, XCircle, Trash2, GripHorizontal, RotateCcw } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, Trash2, GripHorizontal, RotateCcw, Edit } from 'lucide-react'
 import { PlannerEntry as PlannerEntryType } from '../../types'
 import { PlannerService } from '../../services/plannerService'
 import { formatTime, formatDateTimeForBackend, findOverlappingEntries, getActivityColor } from '../../lib/utils'
@@ -25,6 +25,8 @@ interface PlannerEntryProps {
   allEntries?: any[]
   onToastError?: (message: string) => void
   onEntryClick?: (event: PlannerCalendarEvent, position: { x: number; y: number }) => void
+  onEdit?: (event: PlannerCalendarEvent) => void
+  onTodoUpdate?: () => void
   isSelected?: boolean
 }
 
@@ -35,6 +37,8 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
   allEntries = [],
   onToastError,
   onEntryClick,
+  onEdit,
+  onTodoUpdate,
   isSelected = false
 }) => {
   const [isHovered, setIsHovered] = useState(false)
@@ -89,6 +93,8 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
       setIsLoading(true)
       await PlannerService.completeEntry(event.id)
       onUpdate()
+      // Also refresh todos since the associated todo may have been completed
+      onTodoUpdate?.()
     } catch (err) {
       console.error('Complete failed', err)
       onToastError?.('Failed to complete entry.')
@@ -102,6 +108,8 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
       setIsLoading(true)
       await PlannerService.cancelEntry(event.id)
       onUpdate()
+      // Also refresh todos since the associated todo may have been cancelled
+      onTodoUpdate?.()
     } catch (err) {
       console.error('Cancel failed', err)
       onToastError?.('Failed to cancel entry.')
@@ -140,6 +148,20 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
 
   const getContextMenuItems = () => {
     const items: any[] = []
+    
+    // Edit option - available for all statuses
+    if (onEdit) {
+      items.push({
+        label: 'Edit',
+        onClick: () => {
+          setContextMenu({ isOpen: false, position: { x: 0, y: 0 } })
+          onEdit(event)
+        },
+        icon: <Edit className="w-4 h-4" />,
+        className: 'text-indigo-600 hover:bg-indigo-50'
+      })
+    }
+    
     if (event.status === 'Planned' || event.status === 'In Progress') {
       items.push({
         label: 'Complete',
@@ -376,7 +398,7 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
   return (
     <div
       ref={entryRef}
-      className={`absolute inset-0 ${statusStyling.bg} border ${isSelected ? 'border-2 border-blue-500' : statusStyling.border} ${statusStyling.leftBorder} ${statusStyling.leftBorderThick} rounded text-xs ${isEditable ? 'cursor-pointer hover:opacity-90' : 'cursor-default'} transition-opacity shadow-sm ${statusStyling.text} ${statusStyling.opacity} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'} ${isSelected ? 'shadow-lg' : ''}`}
+      className={`absolute inset-0 ${statusStyling.bg} border ${isSelected ? 'border-2 border-blue-500' : statusStyling.border} ${statusStyling.leftBorder} ${statusStyling.leftBorderThick} rounded text-xs ${isEditable ? 'cursor-pointer hover:opacity-90 hover:shadow-md' : 'cursor-default'} transition-all duration-200 shadow-sm ${statusStyling.text} ${statusStyling.opacity} ${isLoading ? 'opacity-50' : ''} ${isResizing ? 'z-40 shadow-lg' : 'z-10'} ${isSelected ? 'shadow-lg' : ''} ${isHovered ? 'shadow-md' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
@@ -392,6 +414,7 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
           <GripHorizontal className="w-4 h-2 text-gray-400 group-hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
+
 
       {/* Header (draggable area) */}
       <div
@@ -473,6 +496,7 @@ const PlannerEntry: React.FC<PlannerEntryProps> = ({
         items={getContextMenuItems()}
         onClose={() => setContextMenu({ isOpen: false, position: { x: 0, y: 0 } })}
       />
+
     </div>
   )
 }

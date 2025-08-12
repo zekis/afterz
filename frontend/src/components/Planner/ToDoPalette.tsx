@@ -151,9 +151,6 @@ const DraggableTodo: React.FC<DraggableTodoProps> = ({ todo, project, users = []
           <div className="font-medium text-sm text-gray-900 truncate">
             {todo.subject}
           </div>
-          <div className="text-xs text-gray-600 truncate">
-            {project?.project_name || todo.project || ''}
-          </div>
           
           {/* Priority badge row */}
           {todo.priority && (

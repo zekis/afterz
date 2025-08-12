@@ -163,12 +163,28 @@ def delete_planner_entry(name):
 
 @frappe.whitelist()
 def complete_planner_entry(name):
-    """Mark a planner entry as completed"""
+    """Mark a planner entry as completed and complete the associated todo if not activity-related"""
     
     try:
         doc = frappe.get_doc("Planner Entry", name)
         doc.status = "Completed"
         doc.save()
+        
+        # If there's an associated todo, check if it should be completed
+        if doc.todo:
+            try:
+                todo_doc = frappe.get_doc("ToDo", doc.todo)
+                
+                # Only complete the todo if it's not referencing an activity
+                # Activities may require multiple todos to complete
+                if todo_doc.reference_type != "Activity":
+                    todo_doc.status = "Closed"
+                    todo_doc.save()
+                    
+            except Exception as todo_error:
+                frappe.log_error(f"Failed to complete associated todo {doc.todo}", f"{str(todo_error)}")
+                # Don't fail the planner entry completion if todo update fails
+        
         frappe.db.commit()
         
         return {"success": True}
@@ -181,12 +197,28 @@ def complete_planner_entry(name):
 
 @frappe.whitelist()
 def cancel_planner_entry(name):
-    """Mark a planner entry as cancelled"""
+    """Mark a planner entry as cancelled and cancel the associated todo if not activity-related"""
     
     try:
         doc = frappe.get_doc("Planner Entry", name)
         doc.status = "Cancelled"
         doc.save()
+        
+        # If there's an associated todo, check if it should be cancelled
+        if doc.todo:
+            try:
+                todo_doc = frappe.get_doc("ToDo", doc.todo)
+                
+                # Only cancel the todo if it's not referencing an activity
+                # Activities may require multiple todos to complete
+                if todo_doc.reference_type != "Activity":
+                    todo_doc.status = "Cancelled"
+                    todo_doc.save()
+                    
+            except Exception as todo_error:
+                frappe.log_error(f"Failed to cancel associated todo {doc.todo}", f"{str(todo_error)}")
+                # Don't fail the planner entry cancellation if todo update fails
+        
         frappe.db.commit()
         
         return {"success": True}

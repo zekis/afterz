@@ -8,6 +8,7 @@ import ViewToggle from './components/Controls/ViewToggle'
 import CalendarViewToggle from './components/Controls/CalendarViewToggle'
 import NavigationDropdown from './components/Controls/NavigationDropdown'
 import HistoryPanel from './components/Common/HistoryPanel'
+import EditPlannerEntryModal from './components/Planner/EditPlannerEntryModal'
 import { PlannerService } from './services/plannerService'
 import { ProjectService, UserService } from './services/timesheetService'
 import { TodoService } from './services/todoService'
@@ -30,8 +31,14 @@ function BeforezApp() {
   // State
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [currentDay, setCurrentDay] = useState(new Date())
-  const [calendarView, setCalendarView] = useState<'week' | 'day'>('week')
-  const [viewMode, setViewMode] = useState<'6am-6pm' | 'full-day'>('6am-6pm')
+  const [calendarView, setCalendarView] = useState<'week' | 'day'>(() => {
+    const saved = localStorage.getItem('beforez-calendar-view')
+    return (saved === 'day' || saved === 'week') ? saved : 'week'
+  })
+  const [viewMode, setViewMode] = useState<'6am-6pm' | 'full-day'>(() => {
+    const saved = localStorage.getItem('beforez-view-mode')
+    return (saved === '6am-6pm' || saved === 'full-day') ? saved : '6am-6pm'
+  })
   const [plannerEntries, setPlannerEntries] = useState<PlannerEntry[]>([])
   const [todos, setTodos] = useState<TodoLite[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -58,6 +65,15 @@ function BeforezApp() {
 
   // Selected entry state
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
+
+  // Edit modal state
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean
+    entry: PlannerCalendarEvent | null
+  }>({
+    isOpen: false,
+    entry: null
+  })
 
   const currentUser: User | null = UserService.getCurrentUser()
 
@@ -308,8 +324,14 @@ function BeforezApp() {
     setCurrentDay(newDay)
     // Don't update currentWeek to avoid conflicts with useEffect
   }
-  const handleCalendarViewChange = (view: 'week' | 'day') => setCalendarView(view)
-  const handleViewModeChange = (mode: '6am-6pm' | 'full-day') => setViewMode(mode)
+  const handleCalendarViewChange = (view: 'week' | 'day') => {
+    setCalendarView(view)
+    localStorage.setItem('beforez-calendar-view', view)
+  }
+  const handleViewModeChange = (mode: '6am-6pm' | 'full-day') => {
+    setViewMode(mode)
+    localStorage.setItem('beforez-view-mode', mode)
+  }
   const handleUserChange = (userId: string) => setSelectedUser(userId)
 
   const handleEntryClick = (event: PlannerCalendarEvent, clickPosition: { x: number; y: number }) => {
@@ -319,6 +341,13 @@ function BeforezApp() {
       doctype: 'Planner Entry',
       docname: event.id,
       title: event.title
+    })
+  }
+
+  const handleEditEntry = (event: PlannerCalendarEvent) => {
+    setEditModal({
+      isOpen: true,
+      entry: event
     })
   }
 
@@ -441,10 +470,7 @@ function BeforezApp() {
               <div className="flex items-center space-x-4">
                 {currentUser && (
                   <NavigationDropdown 
-                    currentUser={currentUser || undefined}
-                    users={users}
-                    selectedUser={selectedUser}
-                    onUserChange={handleUserChange}
+                    currentUser={currentUser}
                   />
                 )}
               </div>
@@ -501,6 +527,8 @@ function BeforezApp() {
                       allEntries={plannerEntries}
                       onToastError={setToastError}
                       onEntryClick={handleEntryClick}
+                      onEditEntry={handleEditEntry}
+                      onTodoUpdate={loadTodos}
                       selectedEntryId={selectedEntryId}
                     />
                   ) : (
@@ -513,6 +541,8 @@ function BeforezApp() {
                       allEntries={plannerEntries}
                       onToastError={setToastError}
                       onEntryClick={handleEntryClick}
+                      onEditEntry={handleEditEntry}
+                      onTodoUpdate={loadTodos}
                       selectedEntryId={selectedEntryId}
                     />
                   )}
@@ -564,6 +594,16 @@ function BeforezApp() {
             </div>
           )}
         </DragOverlay>
+
+        {/* Edit Planner Entry Modal */}
+        <EditPlannerEntryModal
+          isOpen={editModal.isOpen}
+          onClose={() => setEditModal({ isOpen: false, entry: null })}
+          entry={editModal.entry}
+          projects={projects}
+          onUpdate={loadPlannerEntries}
+          onToastError={setToastError}
+        />
 
         {/* Toast Error */}
         {toastError && (

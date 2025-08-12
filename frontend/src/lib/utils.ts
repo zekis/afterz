@@ -219,3 +219,76 @@ export function getActivityColor(activityName: string) {
   const colorIndex = Math.abs(hash) % ACTIVITY_COLORS.length
   return ACTIVITY_COLORS[colorIndex]
 }
+
+// Planner entry overlap detection and stacking utilities
+export function checkPlannerTimeOverlap(
+  start1: Date, 
+  end1: Date, 
+  start2: Date, 
+  end2: Date
+): boolean {
+  // Two time ranges overlap if one starts before the other ends
+  return start1 < end2 && start2 < end1
+}
+
+export function findOverlappingPlannerEntries(
+  entries: any[], 
+  targetEntry: any
+): any[] {
+  const targetStart = new Date(targetEntry.start)
+  const targetEnd = targetEntry.end ? new Date(targetEntry.end) : new Date(targetStart.getTime() + (targetEntry.duration || 1) * 60 * 60 * 1000)
+  
+  return entries.filter(entry => {
+    // Skip the target entry itself
+    if (entry.id === targetEntry.id) {
+      return false
+    }
+    
+    const entryStart = new Date(entry.start)
+    const entryEnd = entry.end ? new Date(entry.end) : new Date(entryStart.getTime() + (entry.duration || 1) * 60 * 60 * 1000)
+    
+    return checkPlannerTimeOverlap(targetStart, targetEnd, entryStart, entryEnd)
+  })
+}
+
+export function calculateHorizontalStacking(
+  entry: any,
+  allEntries: any[]
+): { width: number; leftOffset: number; totalColumns: number } {
+  // Find all entries that overlap with this entry
+  const overlappingEntries = findOverlappingPlannerEntries(allEntries, entry)
+  
+  if (overlappingEntries.length === 0) {
+    return {
+      width: 80, // 80% width percentage for single entries
+      leftOffset: 0,
+      totalColumns: 1
+    }
+  }
+  
+  // Create the full group including this entry
+  const groupEntries = [entry, ...overlappingEntries]
+  
+  // Sort by start time for consistent ordering, then by ID for stability
+  groupEntries.sort((a, b) => {
+    const timeA = new Date(a.start).getTime()
+    const timeB = new Date(b.start).getTime()
+    if (timeA !== timeB) {
+      return timeA - timeB
+    }
+    // If same start time, sort by ID for consistent ordering
+    return a.id.localeCompare(b.id)
+  })
+  
+  const totalColumns = groupEntries.length
+  const columnIndex = groupEntries.findIndex(e => e.id === entry.id)
+  
+  const width = Math.floor(80 / totalColumns) // Width as percentage (80% of available space)
+  const leftOffset = columnIndex * width // Left offset as percentage
+  
+  return {
+    width,
+    leftOffset,
+    totalColumns
+  }
+}

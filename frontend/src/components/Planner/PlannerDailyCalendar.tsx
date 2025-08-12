@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format } from 'date-fns'
 import { Project } from '../../types'
-import { getTimeSlots, createTimeSlotId } from '../../lib/utils'
+import { getTimeSlots, createTimeSlotId, calculateHorizontalStacking } from '../../lib/utils'
 import PlannerEntry, { PlannerCalendarEvent } from './PlannerEntry'
 
 interface PlannerDailyCalendarProps {
@@ -14,6 +14,8 @@ interface PlannerDailyCalendarProps {
   allEntries?: any[]
   onToastError?: (message: string) => void
   onEntryClick?: (event: PlannerCalendarEvent, position: { x: number; y: number }) => void
+  onEditEntry?: (event: PlannerCalendarEvent) => void
+  onTodoUpdate?: () => void
   selectedEntryId?: string | null
 }
 
@@ -53,6 +55,8 @@ const PlannerDailyCalendar: React.FC<PlannerDailyCalendarProps> = ({
   allEntries = [],
   onToastError,
   onEntryClick,
+  onEditEntry,
+  onTodoUpdate,
   selectedEntryId
 }) => {
   const startHour = viewMode === '6am-6pm' ? 6 : 0
@@ -152,29 +156,36 @@ const PlannerDailyCalendar: React.FC<PlannerDailyCalendarProps> = ({
           })}
 
           {/* Positioned Planner Entries */}
-          {positionedEvents.map(event => (
-            <div
-              key={event.id}
-              style={{
-                position: 'absolute',
-                top: `${event.topPosition}px`,
-                height: `${event.height}px`,
-                left: '2px',
-                right: '2px',
-                zIndex: 10
-              }}
-            >
-              <PlannerEntry
-                event={event}
-                onUpdate={onEventUpdate}
-                hourHeight={hourHeight}
-                allEntries={allEntries}
-                onToastError={onToastError}
-                onEntryClick={onEntryClick}
-                isSelected={selectedEntryId === event.id}
-              />
-            </div>
-          ))}
+          {positionedEvents.map(event => {
+            // Calculate horizontal stacking for overlapping entries
+            const stacking = calculateHorizontalStacking(event, positionedEvents)
+            
+            return (
+              <div
+                key={event.id}
+                style={{
+                  position: 'absolute',
+                  top: `${event.topPosition}px`,
+                  height: `${event.height}px`,
+                  left: `calc(${stacking.leftOffset}% + 4px)`,
+                  width: `calc(${stacking.width}% - ${stacking.totalColumns > 1 ? '6px' : '8px'})`,
+                  zIndex: 10
+                }}
+              >
+                <PlannerEntry
+                  event={event}
+                  onUpdate={onEventUpdate}
+                  hourHeight={hourHeight}
+                  allEntries={allEntries}
+                  onToastError={onToastError}
+                  onEntryClick={onEntryClick}
+                  onEdit={onEditEntry}
+                  onTodoUpdate={onTodoUpdate}
+                  isSelected={selectedEntryId === event.id}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
 

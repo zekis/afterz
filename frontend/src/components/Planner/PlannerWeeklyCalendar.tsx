@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format } from 'date-fns'
 import { Project } from '../../types'
-import { getWeekData, getTimeSlots, createTimeSlotId } from '../../lib/utils'
+import { getWeekData, getTimeSlots, createTimeSlotId, calculateHorizontalStacking } from '../../lib/utils'
 import PlannerEntry, { PlannerCalendarEvent } from './PlannerEntry'
 import HistoryPanel from '../Common/HistoryPanel'
 
@@ -15,6 +15,8 @@ interface PlannerWeeklyCalendarProps {
   allEntries?: any[]
   onToastError?: (message: string) => void
   onEntryClick?: (event: PlannerCalendarEvent, position: { x: number; y: number }) => void
+  onEditEntry?: (event: PlannerCalendarEvent) => void
+  onTodoUpdate?: () => void
   selectedEntryId?: string | null
 }
 
@@ -55,6 +57,8 @@ const PlannerWeeklyCalendar: React.FC<PlannerWeeklyCalendarProps> = ({
   allEntries = [],
   onToastError,
   onEntryClick,
+  onEditEntry,
+  onTodoUpdate,
   selectedEntryId
 }) => {
   const weekData = getWeekData(currentWeek)
@@ -163,29 +167,38 @@ const PlannerWeeklyCalendar: React.FC<PlannerWeeklyCalendarProps> = ({
               {/* Positioned Planner Entries */}
               {positionedEvents
                 .filter(event => (event as any).dayIndex === dayIndex)
-                .map(event => (
-                  <div
-                    key={event.id}
-                    style={{
-                      position: 'absolute',
-                      top: `${(event as any).topPosition}px`,
-                      height: `${(event as any).height}px`,
-                      left: '2px',
-                      right: '2px',
-                      zIndex: 10
-                    }}
-                  >
-                    <PlannerEntry
-                      event={event}
-                      onUpdate={onEventUpdate}
-                      hourHeight={hourHeight}
-                      allEntries={allEntries}
-                      onToastError={onToastError}
-                      onEntryClick={onEntryClick}
-                      isSelected={selectedEntryId === event.id}
-                    />
-                  </div>
-                ))}
+                .map(event => {
+                  // Get events for this day only for horizontal stacking calculation
+                  const dayEvents = positionedEvents.filter(e => (e as any).dayIndex === dayIndex)
+                  const stacking = calculateHorizontalStacking(event, dayEvents)
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      style={{
+                        position: 'absolute',
+                        top: `${(event as any).topPosition}px`,
+                        height: `${(event as any).height}px`,
+                        left: `${stacking.leftOffset}%`,
+                        width: `${stacking.width}%`,
+                        zIndex: 10,
+                        paddingRight: '2px' // Small gap between columns
+                      }}
+                    >
+                      <PlannerEntry
+                        event={event}
+                        onUpdate={onEventUpdate}
+                        hourHeight={hourHeight}
+                        allEntries={allEntries}
+                        onToastError={onToastError}
+                        onEntryClick={onEntryClick}
+                        onEdit={onEditEntry}
+                        onTodoUpdate={onTodoUpdate}
+                        isSelected={selectedEntryId === event.id}
+                      />
+                    </div>
+                  )
+                })}
             </div>
           ))}
         </div>
