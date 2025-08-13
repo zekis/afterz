@@ -155,3 +155,22 @@ export interface TodoLite {
   modified?: string;
   owner?: string;
 }
+
+export interface ExtendedTodo extends TodoLite {
+  planning_entries: any[];
+  comment_count: number;
+  last_activity: string;
+  tags: string[];
+  is_owned: boolean;
+  is_assigned: boolean;
+  is_shared: boolean;
+  owner_name?: string;
+  assigned_user_name?: string;
+}
+
+export interface TodoAccess {
+  owned_todos: ExtendedTodo[];
+  assigned_todos: ExtendedTodo[];
+  shared_todos: ExtendedTodo[];
+  all_todos: ExtendedTodo[];
+}

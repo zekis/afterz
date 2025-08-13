@@ -6,6 +6,8 @@ import ToDoPalette from '../components/Planner/ToDoPalette'
 import CalendarViewToggle from '../components/Controls/CalendarViewToggle'
 import HistoryPanel from '../components/Common/HistoryPanel'
 import EditPlannerEntryModal from '../components/Planner/EditPlannerEntryModal'
+import { PageHeader, ContentLayout, ActionToolbar } from '../components/Layout'
+import CreateTodoModal from '../components/WhatWorkz/CreateTodoModal'
 import { PlannerService } from '../services/plannerService'
 import { ProjectService, UserService } from '../services/timesheetService'
 import { TodoService } from '../services/todoService'
@@ -71,6 +73,9 @@ const Planning: React.FC = () => {
     isOpen: false,
     entry: null
   })
+
+  // Create todo modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const currentUser: User | null = UserService.getCurrentUser()
 
@@ -347,6 +352,43 @@ const Planning: React.FC = () => {
     }
   }
 
+  const handleCreateTodoFromModal = async (todoData: Partial<TodoLite>) => {
+    try {
+      const result = await TodoService.createTodo(
+        todoData.subject || '',
+        todoData.project,
+        todoData.allocated_to || selectedUser
+      )
+      
+      if (result.success) {
+        await loadTodos()
+        setShowCreateModal(false)
+        // Show success toast
+        const toast = document.createElement('div')
+        toast.className = 'fixed top-4 right-4 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-lg'
+        toast.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-sm">Todo created successfully!</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-green-500 hover:text-green-700">×</button>
+          </div>
+        `
+        document.body.appendChild(toast)
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast)
+          }
+        }, 3000)
+      } else {
+        setToastError(result.error || 'Failed to create todo')
+        setTimeout(() => setToastError(null), 3000)
+      }
+    } catch (error) {
+      console.error('Create todo failed:', error)
+      setToastError('Failed to create todo')
+      setTimeout(() => setToastError(null), 3000)
+    }
+  }
+
   const handleAssignTodo = async (todoName: string, newUser: string) => {
     try {
       const result = await TodoService.assignTodo(todoName, newUser)
@@ -399,7 +441,7 @@ const Planning: React.FC = () => {
     return (
       <div className="p-8 flex items-center justify-center">
         <div className="text-center">
-          <Clock className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-600" />
+          <Clock className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-slate-600">Loading planner...</p>
         </div>
       </div>
@@ -415,7 +457,7 @@ const Planning: React.FC = () => {
           </div>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Refresh Page
           </button>
@@ -428,12 +470,14 @@ const Planning: React.FC = () => {
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="h-full flex flex-col overflow-hidden">
         {/* Page Header */}
-        <div className="flex-shrink-0 p-6 border-b border-slate-200 bg-white">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Planning</h1>
-              <p className="text-slate-600 mt-1">Plan first, execute better</p>
-            </div>
+        <PageHeader
+          title="Planning"
+          description="Plan first, execute better"
+        >
+          <div className="flex items-center space-x-4">
+            <ActionToolbar
+              onCreateTodo={() => setShowCreateModal(true)}
+            />
             <CalendarViewToggle
               calendarView={calendarView}
               onCalendarViewChange={handleCalendarViewChange}
@@ -445,79 +489,68 @@ const Planning: React.FC = () => {
               onViewModeChange={handleViewModeChange}
             />
           </div>
-        </div>
+        </PageHeader>
 
         {/* Content Area */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="flex gap-6 h-full">
-            {/* Left Column - Palette and Calendar */}
-            <div className="flex gap-6 flex-1 min-h-0 p-6">
-              {/* ToDo Palette */}
-              <div className="w-80 flex-shrink-0 h-full">
-                <ToDoPalette 
-                  todos={todos} 
-                  projects={projects} 
-                  currentUser={currentUser || undefined}
-                  users={users}
-                  onCreateTodo={handleCreateTodo}
-                  onAssignTodo={handleAssignTodo}
-                  onCompleteTodo={handleCompleteTodo}
-                  onCancelTodo={handleCancelTodo}
-                />
-              </div>
-
-              {/* Planner Calendar */}
-              <div className="flex-1 min-h-0 h-full">
-                <div className="h-full overflow-y-auto">
-                  {calendarView === 'week' ? (
-                    <PlannerWeeklyCalendar
-                      currentWeek={currentWeek}
-                      events={getCalendarEvents()}
-                      viewMode={viewMode}
-                      onEventUpdate={loadPlannerEntries}
-                      projects={projects}
-                      allEntries={plannerEntries}
-                      onToastError={setToastError}
-                      onEntryClick={handleEntryClick}
-                      onEditEntry={handleEditEntry}
-                      onTodoUpdate={loadTodos}
-                      selectedEntryId={selectedEntryId}
-                    />
-                  ) : (
-                    <PlannerDailyCalendar
-                      currentDay={currentDay}
-                      events={getCalendarEvents()}
-                      viewMode={viewMode}
-                      onEventUpdate={loadPlannerEntries}
-                      projects={projects}
-                      allEntries={plannerEntries}
-                      onToastError={setToastError}
-                      onEntryClick={handleEntryClick}
-                      onEditEntry={handleEditEntry}
-                      onTodoUpdate={loadTodos}
-                      selectedEntryId={selectedEntryId}
-                    />
-                  )}
-                </div>
-              </div>
+        <ContentLayout
+          leftPanel={
+            <div className="p-6">
+              <ToDoPalette 
+                todos={todos} 
+                projects={projects} 
+                currentUser={currentUser || undefined}
+                users={users}
+                onAssignTodo={handleAssignTodo}
+                onCompleteTodo={handleCompleteTodo}
+                onCancelTodo={handleCancelTodo}
+              />
             </div>
-          
-            {/* Right Column - History Panel */}
-            {historyPanel.isOpen && (
-              <div className="w-80 flex-shrink-0 h-full">
-                <div className="h-full overflow-y-auto overflow-x-hidden">
-                  <HistoryPanel
-                    isOpen={historyPanel.isOpen}
-                    onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
-                    doctype={historyPanel.doctype}
-                    docname={historyPanel.docname}
-                    title={historyPanel.title}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+          }
+          mainContent={
+            <div className="h-full overflow-y-auto p-6">
+              {calendarView === 'week' ? (
+                <PlannerWeeklyCalendar
+                  currentWeek={currentWeek}
+                  events={getCalendarEvents()}
+                  viewMode={viewMode}
+                  onEventUpdate={loadPlannerEntries}
+                  projects={projects}
+                  allEntries={plannerEntries}
+                  onToastError={setToastError}
+                  onEntryClick={handleEntryClick}
+                  onEditEntry={handleEditEntry}
+                  onTodoUpdate={loadTodos}
+                  selectedEntryId={selectedEntryId}
+                />
+              ) : (
+                <PlannerDailyCalendar
+                  currentDay={currentDay}
+                  events={getCalendarEvents()}
+                  viewMode={viewMode}
+                  onEventUpdate={loadPlannerEntries}
+                  projects={projects}
+                  allEntries={plannerEntries}
+                  onToastError={setToastError}
+                  onEntryClick={handleEntryClick}
+                  onEditEntry={handleEditEntry}
+                  onTodoUpdate={loadTodos}
+                  selectedEntryId={selectedEntryId}
+                />
+              )}
+            </div>
+          }
+          rightPanel={
+            historyPanel.isOpen ? (
+              <HistoryPanel
+                isOpen={historyPanel.isOpen}
+                onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
+                doctype={historyPanel.doctype}
+                docname={historyPanel.docname}
+                title={historyPanel.title}
+              />
+            ) : undefined
+          }
+        />
 
         {/* Drag Overlay */}
         <DragOverlay>
@@ -555,6 +588,13 @@ const Planning: React.FC = () => {
           projects={projects}
           onUpdate={loadPlannerEntries}
           onToastError={setToastError}
+        />
+
+        {/* Create Todo Modal */}
+        <CreateTodoModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onCreateTodo={handleCreateTodoFromModal}
         />
 
         {/* Toast Error */}

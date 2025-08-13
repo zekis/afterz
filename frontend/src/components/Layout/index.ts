@@ -1,5 +1,6 @@
 export { default as PageHeader } from './PageHeader'
 export { default as ControlsBar } from './ControlsBar'
 export { default as ActionButton } from './ActionButton'
+export { default as ActionToolbar } from './ActionToolbar'
 export { default as SearchFilter } from './SearchFilter'
 export { default as ContentLayout } from './ContentLayout'

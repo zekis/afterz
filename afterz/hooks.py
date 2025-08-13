@@ -235,6 +235,13 @@ add_to_apps_screen = [
 # 	"afterz.auth.validate"
 # ]
 
+# Website route rules for SPA routing
+# ------------------------------------
+# Note: Using HashRouter, so no server-side routing rules needed
+# website_route_rules = [
+# 	{"from_route": "/workz/*", "to_route": "/workz"},
+# ]
+
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
 

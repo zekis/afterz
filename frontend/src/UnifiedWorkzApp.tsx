@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import AppLayout from './layouts/AppLayout'
 import Dashboard from './pages/Dashboard'
 import TodoManagement from './pages/TodoManagement'
@@ -17,7 +17,7 @@ const Settings: React.FC = () => (
 
 const UnifiedWorkzApp: React.FC = () => {
   return (
-    <Router basename="/workz">
+    <Router>
       <Routes>
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Dashboard />} />

@@ -10,6 +10,7 @@ import CalendarViewToggle from '../components/Controls/CalendarViewToggle'
 import BulkActions from '../components/Controls/BulkActions'
 import UserSwitchModal from '../components/Controls/UserSwitchModal'
 import HistoryPanel from '../components/Common/HistoryPanel'
+import { PageHeader, ControlsBar, ContentLayout, ActionButton } from '../components/Layout'
 import { TimesheetService, ProjectService, ActivityService, UserService } from '../services/timesheetService'
 import { FrappeAPI } from '../services/api'
 import { TimesheetEntry, Activity, Project, User, CalendarEvent } from '../types'
@@ -572,12 +573,11 @@ const Timesheet: React.FC = () => {
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
           </div>
-          <button 
+          <ActionButton 
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Refresh Page
-          </button>
+          </ActionButton>
         </div>
       </div>
     )
@@ -591,48 +591,37 @@ const Timesheet: React.FC = () => {
     >
       <div className="h-full flex flex-col overflow-hidden">
         {/* Page Header */}
-        <div className="flex-shrink-0 p-6 border-b border-slate-200 bg-white">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Timesheet</h1>
-              <p className="text-slate-600 mt-1">Drag, drop, done - timesheet manager</p>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* Manage Assignments button for project managers and timesheet approvers */}
-              {currentUser && manageableProjects.length > 0 && (
-                <button
-                  onClick={() => setManageAssignmentsModalOpen(true)}
-                  className="flex items-center space-x-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                  title="Manage Activity Assignments"
-                >
-                  <UserPlus className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-700 font-medium">Manage Assignments</span>
-                </button>
-              )}
-              
-              {/* Approval Dashboard button for administrators and timesheet approvers */}
-              {currentUser && (currentUser.name === 'Administrator' || projects.some(p => p.timesheet_approver === currentUser.name)) && (
-                <button
-                  onClick={() => setApprovalDashboardModalOpen(true)}
-                  className="flex items-center space-x-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                  title="View Pending Approvals"
-                >
-                  <Users className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-700 font-medium">
-                    Pending Approvals {pendingApprovalCount > 0 && `(${pendingApprovalCount})`}
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title="Timesheet"
+          description="Drag, drop, done - timesheet manager"
+        >
+          {/* Manage Assignments button for project managers and timesheet approvers */}
+          {currentUser && manageableProjects.length > 0 && (
+            <ActionButton
+              variant="secondary"
+              icon={UserPlus}
+              onClick={() => setManageAssignmentsModalOpen(true)}
+            >
+              Manage Assignments
+            </ActionButton>
+          )}
+          
+          {/* Approval Dashboard button for administrators and timesheet approvers */}
+          {currentUser && (currentUser.name === 'Administrator' || projects.some(p => p.timesheet_approver === currentUser.name)) && (
+            <ActionButton
+              variant="secondary"
+              icon={Users}
+              onClick={() => setApprovalDashboardModalOpen(true)}
+            >
+              Pending Approvals {pendingApprovalCount > 0 && `(${pendingApprovalCount})`}
+            </ActionButton>
+          )}
+        </PageHeader>
 
         {/* Controls */}
-        <div className="flex-shrink-0 p-6 border-b border-slate-200 bg-white">
-          <div className="flex justify-between items-center">
-            {/* Left side - User info and actions */}
-            <div className="flex items-center space-x-4">
+        <ControlsBar
+          leftControls={
+            <>
               {/* Selected User Display */}
               {selectedUser && users.length > 0 && (
                 <div className="flex items-center space-x-3">
@@ -650,14 +639,13 @@ const Timesheet: React.FC = () => {
                   
                   {/* Switch User Button - Only for approvers */}
                   {currentUser && (currentUser.name === 'Administrator' || projects.some(p => p.timesheet_approver === currentUser.name)) && (
-                    <button
+                    <ActionButton
+                      variant="secondary"
+                      icon={Users}
                       onClick={() => setUserSwitchModalOpen(true)}
-                      className="flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-sm font-medium"
-                      title="Switch to another user's timesheet"
                     >
-                      <Users className="w-4 h-4 text-slate-600" />
-                      <span className="text-slate-700">Switch User</span>
-                    </button>
+                      Switch User
+                    </ActionButton>
                   )}
                 </div>
               )}
@@ -674,9 +662,9 @@ const Timesheet: React.FC = () => {
                   activities={activities}
                 />
               )}
-            </div>
-
-            {/* Calendar View Toggle */}
+            </>
+          }
+          rightActions={
             <CalendarViewToggle
               calendarView={calendarView}
               onCalendarViewChange={handleCalendarViewChange}
@@ -687,77 +675,67 @@ const Timesheet: React.FC = () => {
               viewMode={viewMode}
               onViewModeChange={handleViewModeChange}
             />
-          </div>
-        </div>
+          }
+        />
 
         {/* Content Area */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="flex gap-6 h-full">
-            {/* Left Column - Palette and Calendar */}
-            <div className="flex gap-6 flex-1 min-h-0 p-6">
-              {/* Activity Palette */}
-              <div className="w-80 flex-shrink-0 h-full">
-                <ActivityPalette 
-                  activities={activities}
-                  projects={projects}
-                  currentUser={currentUser || undefined}
-                  onAssignActivity={handleAssignActivity}
-                />
-              </div>
-
-              {/* Calendar */}
-              <div className="flex-1 min-h-0 h-full">
-                <div className="h-full overflow-y-auto">
-                  {calendarView === 'week' ? (
-                    <WeeklyCalendar
-                      currentWeek={currentWeek}
-                      events={getCalendarEvents()}
-                      viewMode={viewMode}
-                      onEventUpdate={loadTimesheetEntries}
-                      projects={projects}
-                      activities={activities}
-                      allEntries={timesheetEntries}
-                      onToastError={setToastError}
-                      onEntryClick={handleEntryClick}
-                      selectedEntryId={selectedEntryId}
-                      onStatusChange={handleStatusChange}
-                    />
-                  ) : (
-                    <DailyCalendar
-                      currentDay={currentDay}
-                      events={getCalendarEvents()}
-                      viewMode={viewMode}
-                      onEventUpdate={loadTimesheetEntries}
-                      projects={projects}
-                      activities={activities}
-                      allEntries={timesheetEntries}
-                      onToastError={setToastError}
-                      onEntryClick={handleEntryClick}
-                      selectedEntryId={selectedEntryId}
-                      onStatusChange={handleStatusChange}
-                    />
-                  )}
-                </div>
-              </div>
+        <ContentLayout
+          leftPanel={
+            <div className="p-6">
+              <ActivityPalette 
+                activities={activities}
+                projects={projects}
+                currentUser={currentUser || undefined}
+                onAssignActivity={handleAssignActivity}
+              />
             </div>
-          
-            {/* Right Column - History Panel */}
-            {historyPanel.isOpen && (
-              <div className="w-80 flex-shrink-0 h-full">
-                <div className="h-full overflow-y-auto overflow-x-hidden">
-                  <HistoryPanel
-                    isOpen={historyPanel.isOpen}
-                    onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
-                    doctype={historyPanel.doctype}
-                    docname={historyPanel.docname}
-                    title={historyPanel.title}
-                    refreshTrigger={historyRefreshTrigger}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+          }
+          mainContent={
+            <div className="h-full overflow-y-auto p-6">
+              {calendarView === 'week' ? (
+                <WeeklyCalendar
+                  currentWeek={currentWeek}
+                  events={getCalendarEvents()}
+                  viewMode={viewMode}
+                  onEventUpdate={loadTimesheetEntries}
+                  projects={projects}
+                  activities={activities}
+                  allEntries={timesheetEntries}
+                  onToastError={setToastError}
+                  onEntryClick={handleEntryClick}
+                  selectedEntryId={selectedEntryId}
+                  onStatusChange={handleStatusChange}
+                />
+              ) : (
+                <DailyCalendar
+                  currentDay={currentDay}
+                  events={getCalendarEvents()}
+                  viewMode={viewMode}
+                  onEventUpdate={loadTimesheetEntries}
+                  projects={projects}
+                  activities={activities}
+                  allEntries={timesheetEntries}
+                  onToastError={setToastError}
+                  onEntryClick={handleEntryClick}
+                  selectedEntryId={selectedEntryId}
+                  onStatusChange={handleStatusChange}
+                />
+              )}
+            </div>
+          }
+          rightPanel={
+            historyPanel.isOpen ? (
+              <HistoryPanel
+                isOpen={historyPanel.isOpen}
+                onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
+                doctype={historyPanel.doctype}
+                docname={historyPanel.docname}
+                title={historyPanel.title}
+                refreshTrigger={historyRefreshTrigger}
+              />
+            ) : undefined
+          }
+        />
 
         {/* Activity Assignment Modal */}
         <ActivityAssignmentModal

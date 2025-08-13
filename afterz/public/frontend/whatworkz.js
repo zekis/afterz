@@ -1,1 +1,0 @@
-import{Q as e,j as o,r as n,W as i}from"./index2.js";window.initWhatWorkz=function(r){const t=document.getElementById(r);t&&e(t).render(o.jsx(n.StrictMode,{children:o.jsx(i,{})}))};document.getElementById("whatworkz-root")&&window.initWhatWorkz("whatworkz-root");

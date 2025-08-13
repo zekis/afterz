@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Filter, Users } from 'lucide-react'
+import { Plus, Filter, Users, Search } from 'lucide-react'
 import { TodoService } from '../services/todoService'
 import { UserService } from '../services/timesheetService'
 import { TodoLite, User } from '../types'
 import TodoList from '../components/WhatWorkz/TodoList'
 import CreateTodoModal from '../components/WhatWorkz/CreateTodoModal'
 import HistoryPanel from '../components/Common/HistoryPanel'
-import { PageHeader, ControlsBar, ActionButton, SearchFilter, ContentLayout } from '../components/Layout'
-import { ExtendedTodo, TodoAccess } from '../WhatWorkzApp'
+import { PageHeader, ControlsBar, ActionToolbar, SearchFilter, ContentLayout } from '../components/Layout'
+import { ExtendedTodo, TodoAccess } from '../types'
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due_date' | 'owner'
 type SortBy = 'priority' | 'due_date' | 'created' | 'modified' | 'assignee'
@@ -240,125 +240,104 @@ const TodoManagement: React.FC = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Page Header */}
-      <div className="p-6 border-b border-slate-200 bg-white">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Todos</h1>
-            <p className="text-slate-600 mt-1">Manage your tasks and assignments</p>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Todo</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Todos"
+        description="Manage your tasks and assignments"
+      >
+        <ActionToolbar
+          onCreateTodo={() => setShowCreateModal(true)}
+        />
+      </PageHeader>
 
       {/* Controls */}
-      <div className="p-6 border-b border-slate-200 bg-white">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search todos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
-            />
-          </div>
-
-          {/* View Mode */}
-          <select
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as ViewMode)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Todos ({todos.all_todos.length})</option>
-            <option value="my_todos">My Todos ({todos.owned_todos.length})</option>
-            <option value="assigned_to_me">Assigned to Me ({todos.assigned_todos.length})</option>
-            <option value="shared_with_me">Shared with Me ({todos.shared_todos.length})</option>
-          </select>
-
-          {/* Group By */}
-          <select
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="status">Group by Status</option>
-            <option value="priority">Group by Priority</option>
-            <option value="assignee">Group by Assignee</option>
-            <option value="project">Group by Project</option>
-            <option value="owner">Group by Owner</option>
-          </select>
-
-          {/* Sort By */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="priority">Sort by Priority</option>
-            <option value="created">Sort by Created</option>
-            <option value="modified">Sort by Modified</option>
-            <option value="assignee">Sort by Assignee</option>
-          </select>
-        </div>
-      </div>
+      <ControlsBar
+        leftControls={
+          <SearchFilter
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search todos..."
+            filters={[
+              {
+                label: 'View',
+                value: viewMode,
+                options: [
+                  { label: `All Todos (${todos.all_todos.length})`, value: 'all' },
+                  { label: `My Todos (${todos.owned_todos.length})`, value: 'my_todos' },
+                  { label: `Assigned to Me (${todos.assigned_todos.length})`, value: 'assigned_to_me' },
+                  { label: `Shared with Me (${todos.shared_todos.length})`, value: 'shared_with_me' }
+                ],
+                onChange: (value) => setViewMode(value as ViewMode)
+              },
+              {
+                label: 'Group',
+                value: groupBy,
+                options: [
+                  { label: 'Group by Status', value: 'status' },
+                  { label: 'Group by Priority', value: 'priority' },
+                  { label: 'Group by Assignee', value: 'assignee' },
+                  { label: 'Group by Project', value: 'project' },
+                  { label: 'Group by Owner', value: 'owner' }
+                ],
+                onChange: (value) => setGroupBy(value as GroupBy)
+              },
+              {
+                label: 'Sort',
+                value: sortBy,
+                options: [
+                  { label: 'Sort by Priority', value: 'priority' },
+                  { label: 'Sort by Created', value: 'created' },
+                  { label: 'Sort by Modified', value: 'modified' },
+                  { label: 'Sort by Assignee', value: 'assignee' }
+                ],
+                onChange: (value) => setSortBy(value as SortBy)
+              }
+            ]}
+          />
+        }
+      />
 
       {/* Content Area */}
-      <div className="flex-1 min-h-0">
-        <div className="flex gap-6 h-full">
-          {/* Todo List */}
-          <div className={`min-h-0 min-w-0 transition-all duration-300 ${historyPanel.isOpen ? 'flex-1' : 'flex-1'}`}>
-            <div className="h-full overflow-y-auto p-6">
-              <TodoList
-                todos={filteredTodos}
-                groupBy={groupBy}
-                selectedTodos={selectedTodos}
-                onSelectTodo={(todoName, selected) => {
-                  const newSelected = new Set(selectedTodos)
-                  if (selected) {
-                    newSelected.add(todoName)
-                  } else {
-                    newSelected.delete(todoName)
-                  }
-                  setSelectedTodos(newSelected)
-                }}
-                onUpdateTodo={handleUpdateTodo}
-                onDeleteTodo={handleDeleteTodo}
-                onTodoClick={(todo) => {
-                  setHistoryPanel({
-                    isOpen: true,
-                    doctype: 'ToDo',
-                    docname: todo.name,
-                    title: todo.subject
-                  })
-                }}
-              />
-            </div>
+      <ContentLayout
+        mainContent={
+          <div className="h-full overflow-y-auto p-6">
+            <TodoList
+              todos={filteredTodos}
+              groupBy={groupBy}
+              selectedTodos={selectedTodos}
+              onSelectTodo={(todoName, selected) => {
+                const newSelected = new Set(selectedTodos)
+                if (selected) {
+                  newSelected.add(todoName)
+                } else {
+                  newSelected.delete(todoName)
+                }
+                setSelectedTodos(newSelected)
+              }}
+              onUpdateTodo={handleUpdateTodo}
+              onDeleteTodo={handleDeleteTodo}
+              onTodoClick={(todo) => {
+                setHistoryPanel({
+                  isOpen: true,
+                  doctype: 'ToDo',
+                  docname: todo.name,
+                  title: todo.subject
+                })
+              }}
+            />
           </div>
-
-          {/* History Panel */}
-          {historyPanel.isOpen && (
-            <div className="w-80 flex-shrink-0 min-h-0">
-              <div className="h-full overflow-y-auto overflow-x-hidden">
-                <HistoryPanel
-                  isOpen={historyPanel.isOpen}
-                  onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
-                  doctype={historyPanel.doctype}
-                  docname={historyPanel.docname}
-                  title={historyPanel.title}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        }
+        rightPanel={
+          historyPanel.isOpen ? (
+            <HistoryPanel
+              isOpen={historyPanel.isOpen}
+              onClose={() => setHistoryPanel(prev => ({ ...prev, isOpen: false }))}
+              doctype={historyPanel.doctype}
+              docname={historyPanel.docname}
+              title={historyPanel.title}
+            />
+          ) : undefined
+        }
+      />
 
       {/* Create Todo Modal */}
       <CreateTodoModal
