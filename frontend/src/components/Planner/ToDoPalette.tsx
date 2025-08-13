@@ -3,7 +3,6 @@ import { useDraggable } from '@dnd-kit/core'
 import { Search, Folder, CheckSquare, UserPlus, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import { TodoLite, Project, User as UserType } from '../../types'
 import { getActivityColor } from '../../lib/utils'
-import AppModeToggle from '../Controls/AppModeToggle'
 import QuickTodoForm from './QuickTodoForm'
 import ContextMenu from '../Common/ContextMenu'
 
@@ -221,16 +220,23 @@ const ToDoPalette: React.FC<ToDoPaletteProps> = ({ todos, projects, users = [], 
     return Array.from(groups.entries()).map(([referenceType, list]) => ({
       referenceType,
       displayName: referenceType === 'General' ? 'General Tasks' : `${referenceType}s`,
-      todos: list.sort((a, b) => (a.subject || '').localeCompare(b.subject || ''))
+      todos: list.sort((a, b) => {
+        const aSubject = (a.subject != null ? String(a.subject) : '')
+        const bSubject = (b.subject != null ? String(b.subject) : '')
+        return aSubject.localeCompare(bSubject)
+      })
     }))
   }, [filteredTodos])
 
-  // Default expanded
+  // Default expanded (except Activities which are collapsed by default)
   useEffect(() => {
     setCollapsed(prev => {
       const next = { ...prev }
       grouped.forEach(({ referenceType }) => {
-        if (next[referenceType] === undefined) next[referenceType] = false
+        if (next[referenceType] === undefined) {
+          // Default Activities to collapsed, everything else expanded
+          next[referenceType] = referenceType === 'Activity'
+        }
       })
       return next
     })
@@ -239,20 +245,13 @@ const ToDoPalette: React.FC<ToDoPaletteProps> = ({ todos, projects, users = [], 
   return (
     <div className="bg-white rounded-lg shadow-sm border flex flex-col h-full">
       <div className="p-4 border-b flex-shrink-0">
-        <div className="mb-4">
-          <AppModeToggle 
-            currentMode="plan" 
-            onModeChange={() => {}} 
-          />
-          
-          {onCreateTodo && (
-            <div className="mt-3">
-              <QuickTodoForm 
-                onCreateTodo={onCreateTodo}
-              />
-            </div>
-          )}
-        </div>
+        {onCreateTodo && (
+          <div className="mb-4">
+            <QuickTodoForm 
+              onCreateTodo={onCreateTodo}
+            />
+          </div>
+        )}
         
         <div className="flex items-center space-x-2 mb-4">
           <CheckSquare className="w-5 h-5 text-indigo-600" />

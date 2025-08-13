@@ -153,4 +153,5 @@ export interface TodoLite {
   status?: string;
   creation?: string;
   modified?: string;
+  owner?: string;
 }

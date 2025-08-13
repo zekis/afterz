@@ -13,10 +13,10 @@ app_license = "mit"
 # Each item in the list will be shown as an app in the apps page
 add_to_apps_screen = [
 	{
-		"name": "afterz",
+		"name": "workz",
 		"logo": "/assets/afterz/afterz.png",
-		"title": "Afterz",
-		"route": "/afterz",
+		"title": "Workz",
+		"route": "/workz",
 		"has_permission": "afterz.api.has_app_permission"
 	}
 ]

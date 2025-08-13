@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Home, Grid, LogOut, User } from 'lucide-react'
+import { ChevronDown, Home, Grid, LogOut, User, Search, Calendar, Clock } from 'lucide-react'
 import { User as UserType } from '../../types'
 
 interface NavigationDropdownProps {
@@ -56,7 +56,7 @@ const NavigationDropdown: React.FC<NavigationDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
           {/* User Info */}
           {currentUser && (
             <>
@@ -67,6 +67,40 @@ const NavigationDropdown: React.FC<NavigationDropdownProps> = ({
             </>
           )}
 
+
+          {/* Workz Apps */}
+          <div className="px-4 py-2">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Workz Apps</div>
+          </div>
+
+          <button
+            onClick={() => window.location.href = '/whatz'}
+            className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+          >
+            <Search className="w-4 h-4 text-purple-500" />
+            <span>What-Workz</span>
+            <span className="text-xs text-gray-400 ml-auto">Manage</span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/beforez'}
+            className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+          >
+            <Calendar className="w-4 h-4 text-indigo-500" />
+            <span>Before-Workz</span>
+            <span className="text-xs text-gray-400 ml-auto">Plan</span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/afterz'}
+            className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+          >
+            <Clock className="w-4 h-4 text-green-500" />
+            <span>After-Workz</span>
+            <span className="text-xs text-gray-400 ml-auto">Track</span>
+          </button>
+
+          <div className="border-t border-gray-100 my-1"></div>
 
           {/* Navigation Options */}
           <button

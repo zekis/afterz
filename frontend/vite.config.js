@@ -23,9 +23,14 @@ export default defineConfig({
 		emptyOutDir: true,
 		target: 'es2015',
 		rollupOptions: {
-			input: path.resolve(__dirname, 'src/main.tsx'),
+			input: {
+				main: path.resolve(__dirname, 'src/main.tsx'),
+				whatworkz: path.resolve(__dirname, 'src/main-whatworkz.jsx')
+			},
 			output: {
-				entryFileNames: 'index.js',
+				entryFileNames: (chunkInfo) => {
+					return chunkInfo.name === 'main' ? 'index.js' : '[name].js'
+				},
 				chunkFileNames: '[name].js',
 				assetFileNames: 'index.[ext]'
 			}

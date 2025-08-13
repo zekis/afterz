@@ -92,4 +92,121 @@ export class TodoService {
       }
     }
   }
+
+  static async getAllTodos(): Promise<TodoLite[]> {
+    try {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0]
+      
+      // Get active todos (Open, Working, Planned, Backlog)
+      const activeRes = await FrappeAPI.post<any>('frappe.client.get_list', {
+        doctype: 'ToDo',
+        fields: [
+          'name',
+          'description as subject',
+          'reference_name as project',
+          'reference_type',
+          'allocated_to',
+          'priority',
+          'status',
+          'creation',
+          'modified',
+          'owner'
+        ],
+        filters: [['status', 'in', ['Open', 'Working', 'Planned', 'Backlog']]],
+        order_by: 'creation desc',
+        limit_page_length: 1000
+      })
+
+      // Get today's completed and cancelled todos
+      const completedRes = await FrappeAPI.post<any>('frappe.client.get_list', {
+        doctype: 'ToDo',
+        fields: [
+          'name',
+          'description as subject',
+          'reference_name as project',
+          'reference_type',
+          'allocated_to',
+          'priority',
+          'status',
+          'creation',
+          'modified',
+          'owner'
+        ],
+        filters: [
+          ['status', 'in', ['Closed', 'Cancelled']],
+          ['modified', '>=', today + ' 00:00:00']
+        ],
+        order_by: 'modified desc',
+        limit_page_length: 100
+      })
+
+      // Combine both results
+      const activeTodos = activeRes.message || []
+      const completedTodos = completedRes.message || []
+      
+      return [...activeTodos, ...completedTodos]
+    } catch (error: any) {
+      console.error('Get all todos failed:', error)
+      return []
+    }
+  }
+
+  static async updateTodo(todoName: string, updates: Partial<TodoLite>): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Convert TodoLite fields to Frappe ToDo fields
+      const frappeUpdates: any = {}
+      
+      if (updates.subject !== undefined) {
+        frappeUpdates.description = updates.subject
+      }
+      if (updates.status !== undefined) {
+        frappeUpdates.status = updates.status
+      }
+      if (updates.priority !== undefined) {
+        frappeUpdates.priority = updates.priority
+      }
+      if (updates.allocated_to !== undefined) {
+        frappeUpdates.allocated_to = updates.allocated_to
+      }
+      if (updates.project !== undefined) {
+        frappeUpdates.reference_name = updates.project
+        frappeUpdates.reference_type = updates.project ? 'Project' : null
+      }
+
+      // Update multiple fields at once
+      const res = await FrappeAPI.post<any>('frappe.client.save', {
+        doc: {
+          doctype: 'ToDo',
+          name: todoName,
+          ...frappeUpdates
+        }
+      })
+
+      return { success: true }
+    } catch (error: any) {
+      console.error('Update todo failed:', error)
+      return {
+        success: false,
+        error: error.message || 'Failed to update todo'
+      }
+    }
+  }
+
+  static async deleteTodo(todoName: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await FrappeAPI.post<any>('frappe.client.delete', {
+        doctype: 'ToDo',
+        name: todoName
+      })
+
+      return { success: true }
+    } catch (error: any) {
+      console.error('Delete todo failed:', error)
+      return {
+        success: false,
+        error: error.message || 'Failed to delete todo'
+      }
+    }
+  }
 }

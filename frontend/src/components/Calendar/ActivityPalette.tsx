@@ -3,7 +3,6 @@ import { useDraggable } from '@dnd-kit/core'
 import { Search, Folder, Activity as ActivityIcon } from 'lucide-react'
 import { Activity, Project, User as UserType } from '../../types'
 import { getActivityColor } from '../../lib/utils'
-import AppModeToggle from '../Controls/AppModeToggle'
 
 interface ActivityPaletteProps {
   activities: Activity[]
@@ -111,7 +110,11 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
     return Array.from(groups.entries()).map(([projectName, projectActivities]) => ({
       project: projectMap.get(projectName),
       projectName,
-      activities: projectActivities.sort((a, b) => a.activity_name.localeCompare(b.activity_name))
+      activities: projectActivities.sort((a, b) => {
+        const aName = (a.activity_name != null ? String(a.activity_name) : '')
+        const bName = (b.activity_name != null ? String(b.activity_name) : '')
+        return aName.localeCompare(bName)
+      })
     }))
   }, [filteredActivities, projectMap])
 
@@ -129,11 +132,6 @@ const ActivityPalette: React.FC<ActivityPaletteProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border flex flex-col h-full">
       <div className="p-4 border-b flex-shrink-0">
-        <AppModeToggle 
-          currentMode="book" 
-          onModeChange={() => {}} 
-        />
-        
         <div className="flex items-center space-x-2 mb-4">
           <ActivityIcon className="w-5 h-5 text-blue-600" />
           <h3 className="font-semibold text-gray-900">Activities</h3>
