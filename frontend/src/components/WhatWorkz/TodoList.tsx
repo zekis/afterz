@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, User, Calendar, MessageCircle, Clock, Tag } from 'lucide-react'
-import { ExtendedTodo } from '../../WhatWorkzApp'
+import { ExtendedTodo } from '../../types'
 import TodoItem from './TodoItem'
 
-type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due_date' | 'owner'
+type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due_date' | 'owner' | 'reference_type'
 
 interface TodoListProps {
   todos: ExtendedTodo[]
@@ -11,7 +11,11 @@ interface TodoListProps {
   selectedTodos: Set<string>
   onSelectTodo: (todoName: string, selected: boolean) => void
   onUpdateTodo: (todoName: string, updates: Partial<ExtendedTodo>) => void
+  onCompleteTodo?: (todoName: string) => void
+  onCancelTodo?: (todoName: string) => void
   onDeleteTodo: (todoName: string) => void
+  onEditTodo?: (todo: ExtendedTodo) => void
+  onAssignTodo?: (todo: ExtendedTodo) => void
   onTodoClick?: (todo: ExtendedTodo) => void
 }
 
@@ -28,7 +32,11 @@ const TodoList: React.FC<TodoListProps> = ({
   selectedTodos,
   onSelectTodo,
   onUpdateTodo,
+  onCompleteTodo,
+  onCancelTodo,
   onDeleteTodo,
+  onEditTodo,
+  onAssignTodo,
   onTodoClick
 }) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -61,6 +69,10 @@ const TodoList: React.FC<TodoListProps> = ({
         case 'owner':
           groupKey = todo.owner || 'Unknown'
           groupLabel = todo.owner_name || groupKey
+          break
+        case 'reference_type':
+          groupKey = todo.reference_type || 'General'
+          groupLabel = groupKey === 'General' ? 'General Tasks' : `${groupKey}s`
           break
         default:
           groupKey = 'All'
@@ -236,7 +248,11 @@ const TodoList: React.FC<TodoListProps> = ({
                     isSelected={selectedTodos.has(todo.name)}
                     onSelect={(selected) => onSelectTodo(todo.name, selected)}
                     onUpdate={(updates) => onUpdateTodo(todo.name, updates)}
+                    onComplete={onCompleteTodo ? () => onCompleteTodo(todo.name) : undefined}
+                    onCancel={onCancelTodo ? () => onCancelTodo(todo.name) : undefined}
                     onDelete={() => onDeleteTodo(todo.name)}
+                    onEdit={onEditTodo ? () => onEditTodo(todo) : undefined}
+                    onAssign={onAssignTodo ? () => onAssignTodo(todo) : undefined}
                     onClick={onTodoClick ? () => onTodoClick(todo) : undefined}
                   />
                 ))}

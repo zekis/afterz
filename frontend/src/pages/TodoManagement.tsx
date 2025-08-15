@@ -3,13 +3,15 @@ import { Plus, Filter, Users, Search } from 'lucide-react'
 import { TodoService } from '../services/todoService'
 import { UserService } from '../services/timesheetService'
 import { TodoLite, User } from '../types'
-import TodoList from '../components/WhatWorkz/TodoList'
+import TodoTable from '../components/WhatWorkz/Table/TodoTable'
 import CreateTodoModal from '../components/WhatWorkz/CreateTodoModal'
+import EditTodoModal from '../components/WhatWorkz/EditTodoModal'
+import AssignTodoModal from '../components/WhatWorkz/AssignTodoModal'
 import HistoryPanel from '../components/Common/HistoryPanel'
-import { PageHeader, ControlsBar, ActionToolbar, SearchFilter, ContentLayout } from '../components/Layout'
+import { PageHeader, ActionToolbar, ContentLayout } from '../components/Layout'
 import { ExtendedTodo, TodoAccess } from '../types'
 
-type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due_date' | 'owner'
+type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due_date' | 'owner' | 'reference_type'
 type SortBy = 'priority' | 'due_date' | 'created' | 'modified' | 'assignee'
 type ViewMode = 'my_todos' | 'assigned_to_me' | 'shared_with_me' | 'all'
 
@@ -30,6 +32,20 @@ const TodoManagement: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [selectedTodos, setSelectedTodos] = useState<Set<string>>(new Set())
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean
+    todo: ExtendedTodo | null
+  }>({
+    isOpen: false,
+    todo: null
+  })
+  const [assignModal, setAssignModal] = useState<{
+    isOpen: boolean
+    todo: ExtendedTodo | null
+  }>({
+    isOpen: false,
+    todo: null
+  })
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   
   // History panel state
@@ -186,6 +202,51 @@ const TodoManagement: React.FC = () => {
     }
   }
 
+  const handleCompleteTodo = async (todoName: string) => {
+    try {
+      const result = await TodoService.completeTodo(todoName)
+      if (result.success) {
+        await loadTodos()
+        showToast('Todo completed successfully!')
+      } else {
+        showToast(result.error || 'Failed to complete todo')
+      }
+    } catch (error) {
+      console.error('Complete todo failed:', error)
+      showToast('Failed to complete todo')
+    }
+  }
+
+  const handleCancelTodo = async (todoName: string) => {
+    try {
+      const result = await TodoService.cancelTodo(todoName)
+      if (result.success) {
+        await loadTodos()
+        showToast('Todo cancelled successfully!')
+      } else {
+        showToast(result.error || 'Failed to cancel todo')
+      }
+    } catch (error) {
+      console.error('Cancel todo failed:', error)
+      showToast('Failed to cancel todo')
+    }
+  }
+
+  const handleAssignTodo = async (todoName: string, userId: string) => {
+    try {
+      const result = await TodoService.assignTodo(todoName, userId)
+      if (result.success) {
+        await loadTodos()
+        showToast(userId ? 'Todo assigned successfully!' : 'Todo unassigned successfully!')
+      } else {
+        showToast(result.error || 'Failed to assign todo')
+      }
+    } catch (error) {
+      console.error('Assign todo failed:', error)
+      showToast('Failed to assign todo')
+    }
+  }
+
   const handleDeleteTodo = async (todoName: string) => {
     if (!confirm('Are you sure you want to delete this todo?')) return
     
@@ -249,82 +310,49 @@ const TodoManagement: React.FC = () => {
         />
       </PageHeader>
 
-      {/* Controls */}
-      <ControlsBar
-        leftControls={
-          <SearchFilter
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Search todos..."
-            filters={[
-              {
-                label: 'View',
-                value: viewMode,
-                options: [
-                  { label: `All Todos (${todos.all_todos.length})`, value: 'all' },
-                  { label: `My Todos (${todos.owned_todos.length})`, value: 'my_todos' },
-                  { label: `Assigned to Me (${todos.assigned_todos.length})`, value: 'assigned_to_me' },
-                  { label: `Shared with Me (${todos.shared_todos.length})`, value: 'shared_with_me' }
-                ],
-                onChange: (value) => setViewMode(value as ViewMode)
-              },
-              {
-                label: 'Group',
-                value: groupBy,
-                options: [
-                  { label: 'Group by Status', value: 'status' },
-                  { label: 'Group by Priority', value: 'priority' },
-                  { label: 'Group by Assignee', value: 'assignee' },
-                  { label: 'Group by Project', value: 'project' },
-                  { label: 'Group by Owner', value: 'owner' }
-                ],
-                onChange: (value) => setGroupBy(value as GroupBy)
-              },
-              {
-                label: 'Sort',
-                value: sortBy,
-                options: [
-                  { label: 'Sort by Priority', value: 'priority' },
-                  { label: 'Sort by Created', value: 'created' },
-                  { label: 'Sort by Modified', value: 'modified' },
-                  { label: 'Sort by Assignee', value: 'assignee' }
-                ],
-                onChange: (value) => setSortBy(value as SortBy)
-              }
-            ]}
-          />
-        }
-      />
-
       {/* Content Area */}
       <ContentLayout
         mainContent={
-          <div className="h-full overflow-y-auto p-6">
-            <TodoList
-              todos={filteredTodos}
-              groupBy={groupBy}
-              selectedTodos={selectedTodos}
-              onSelectTodo={(todoName, selected) => {
-                const newSelected = new Set(selectedTodos)
-                if (selected) {
-                  newSelected.add(todoName)
-                } else {
-                  newSelected.delete(todoName)
-                }
-                setSelectedTodos(newSelected)
-              }}
-              onUpdateTodo={handleUpdateTodo}
-              onDeleteTodo={handleDeleteTodo}
-              onTodoClick={(todo) => {
-                setHistoryPanel({
-                  isOpen: true,
-                  doctype: 'ToDo',
-                  docname: todo.name,
-                  title: todo.subject
-                })
-              }}
-            />
-          </div>
+          <TodoTable
+            todos={filteredTodos}
+            groupBy={groupBy}
+            selectedTodos={selectedTodos}
+            onSelectTodo={(todoName, selected) => {
+              const newSelected = new Set(selectedTodos)
+              if (selected) {
+                newSelected.add(todoName)
+              } else {
+                newSelected.delete(todoName)
+              }
+              setSelectedTodos(newSelected)
+            }}
+            onUpdateTodo={handleUpdateTodo}
+            onCompleteTodo={handleCompleteTodo}
+            onCancelTodo={handleCancelTodo}
+            onDeleteTodo={handleDeleteTodo}
+            onEditTodo={(todo) => {
+              setEditModal({
+                isOpen: true,
+                todo: todo
+              })
+            }}
+            onAssignTodo={(todo) => {
+              setAssignModal({
+                isOpen: true,
+                todo: todo
+              })
+            }}
+            onTodoClick={(todo) => {
+              setHistoryPanel({
+                isOpen: true,
+                doctype: 'ToDo',
+                docname: todo.name,
+                title: todo.subject
+              })
+            }}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
         }
         rightPanel={
           historyPanel.isOpen ? (
@@ -344,6 +372,22 @@ const TodoManagement: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreateTodo={handleCreateTodo}
+      />
+
+      {/* Edit Todo Modal */}
+      <EditTodoModal
+        isOpen={editModal.isOpen}
+        onClose={() => setEditModal({ isOpen: false, todo: null })}
+        todo={editModal.todo}
+        onUpdateTodo={handleUpdateTodo}
+      />
+
+      {/* Assign Todo Modal */}
+      <AssignTodoModal
+        isOpen={assignModal.isOpen}
+        onClose={() => setAssignModal({ isOpen: false, todo: null })}
+        todo={assignModal.todo}
+        onAssignTodo={handleAssignTodo}
       />
 
       {/* Toast Message */}

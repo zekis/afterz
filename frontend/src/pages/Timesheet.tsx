@@ -594,29 +594,7 @@ const Timesheet: React.FC = () => {
         <PageHeader
           title="Timesheet"
           description="Drag, drop, done - timesheet manager"
-        >
-          {/* Manage Assignments button for project managers and timesheet approvers */}
-          {currentUser && manageableProjects.length > 0 && (
-            <ActionButton
-              variant="secondary"
-              icon={UserPlus}
-              onClick={() => setManageAssignmentsModalOpen(true)}
-            >
-              Manage Assignments
-            </ActionButton>
-          )}
-          
-          {/* Approval Dashboard button for administrators and timesheet approvers */}
-          {currentUser && (currentUser.name === 'Administrator' || projects.some(p => p.timesheet_approver === currentUser.name)) && (
-            <ActionButton
-              variant="secondary"
-              icon={Users}
-              onClick={() => setApprovalDashboardModalOpen(true)}
-            >
-              Pending Approvals {pendingApprovalCount > 0 && `(${pendingApprovalCount})`}
-            </ActionButton>
-          )}
-        </PageHeader>
+        />
 
         {/* Controls */}
         <ControlsBar

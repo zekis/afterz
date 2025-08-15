@@ -154,33 +154,44 @@ export class TodoService {
 
   static async updateTodo(todoName: string, updates: Partial<TodoLite>): Promise<{ success: boolean; error?: string }> {
     try {
-      // Convert TodoLite fields to Frappe ToDo fields
-      const frappeUpdates: any = {}
-      
-      if (updates.subject !== undefined) {
-        frappeUpdates.description = updates.subject
-      }
-      if (updates.status !== undefined) {
-        frappeUpdates.status = updates.status
-      }
-      if (updates.priority !== undefined) {
-        frappeUpdates.priority = updates.priority
-      }
-      if (updates.allocated_to !== undefined) {
-        frappeUpdates.allocated_to = updates.allocated_to
-      }
-      if (updates.project !== undefined) {
-        frappeUpdates.reference_name = updates.project
-        frappeUpdates.reference_type = updates.project ? 'Project' : null
+      // First, get the fresh document to avoid timestamp conflicts
+      const freshDocRes = await FrappeAPI.post<any>('frappe.client.get', {
+        doctype: 'ToDo',
+        name: todoName
+      })
+
+      if (!freshDocRes?.message) {
+        return {
+          success: false,
+          error: 'Failed to fetch current document'
+        }
       }
 
-      // Update multiple fields at once
+      const freshDoc = freshDocRes.message
+
+      // Convert TodoLite fields to Frappe ToDo fields and merge with fresh doc
+      const updatedDoc = { ...freshDoc }
+      
+      if (updates.subject !== undefined) {
+        updatedDoc.description = updates.subject
+      }
+      if (updates.status !== undefined) {
+        updatedDoc.status = updates.status
+      }
+      if (updates.priority !== undefined) {
+        updatedDoc.priority = updates.priority
+      }
+      if (updates.allocated_to !== undefined) {
+        updatedDoc.allocated_to = updates.allocated_to
+      }
+      if (updates.project !== undefined) {
+        updatedDoc.reference_name = updates.project
+        updatedDoc.reference_type = updates.project ? 'Project' : null
+      }
+
+      // Save with fresh timestamp
       const res = await FrappeAPI.post<any>('frappe.client.save', {
-        doc: {
-          doctype: 'ToDo',
-          name: todoName,
-          ...frappeUpdates
-        }
+        doc: updatedDoc
       })
 
       return { success: true }

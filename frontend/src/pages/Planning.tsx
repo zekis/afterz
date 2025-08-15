@@ -493,18 +493,18 @@ const Planning: React.FC = () => {
 
         {/* Content Area */}
         <ContentLayout
+          leftPanelWidth="w-96"
+          className="gap-0"
           leftPanel={
-            <div className="p-6">
-              <ToDoPalette 
-                todos={todos} 
-                projects={projects} 
-                currentUser={currentUser || undefined}
-                users={users}
-                onAssignTodo={handleAssignTodo}
-                onCompleteTodo={handleCompleteTodo}
-                onCancelTodo={handleCancelTodo}
-              />
-            </div>
+            <ToDoPalette 
+              todos={todos} 
+              projects={projects} 
+              currentUser={currentUser || undefined}
+              users={users}
+              onAssignTodo={handleAssignTodo}
+              onCompleteTodo={handleCompleteTodo}
+              onCancelTodo={handleCancelTodo}
+            />
           }
           mainContent={
             <div className="h-full overflow-y-auto p-6">

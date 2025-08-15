@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard'
 import TodoManagement from './pages/TodoManagement'
 import Planning from './pages/Planning'
 import Timesheet from './pages/Timesheet'
+import ManageAssignments from './pages/ManageAssignments'
+import PendingApprovals from './pages/PendingApprovals'
 
 // Placeholder components for remaining modules
 
@@ -24,6 +26,8 @@ const UnifiedWorkzApp: React.FC = () => {
           <Route path="todos" element={<TodoManagement />} />
           <Route path="planning" element={<Planning />} />
           <Route path="timesheet" element={<Timesheet />} />
+          <Route path="timesheet/assignments" element={<ManageAssignments />} />
+          <Route path="timesheet/approvals" element={<PendingApprovals />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

@@ -15,7 +15,7 @@ import {
   UserCheck,
   CalendarCheck
 } from 'lucide-react'
-import { ExtendedTodo } from '../../WhatWorkzApp'
+import { ExtendedTodo } from '../../types'
 import ContextMenu from '../Common/ContextMenu'
 
 interface TodoItemProps {
@@ -23,7 +23,11 @@ interface TodoItemProps {
   isSelected: boolean
   onSelect: (selected: boolean) => void
   onUpdate: (updates: Partial<ExtendedTodo>) => void
+  onComplete?: () => void
+  onCancel?: () => void
   onDelete: () => void
+  onEdit?: () => void
+  onAssign?: () => void
   onClick?: () => void
 }
 
@@ -32,7 +36,11 @@ const TodoItem: React.FC<TodoItemProps> = ({
   isSelected,
   onSelect,
   onUpdate,
+  onComplete,
+  onCancel,
   onDelete,
+  onEdit,
+  onAssign,
   onClick
 }) => {
   const [showPlanningDetails, setShowPlanningDetails] = useState(false)
@@ -56,6 +64,67 @@ const TodoItem: React.FC<TodoItemProps> = ({
     window.open(frappeUrl, '_blank')
   }
 
+  const getStatusSubmenuItems = () => {
+    const statusItems: any[] = []
+
+    if (todo.status === 'Open') {
+      statusItems.push({
+        label: 'Mark as Working',
+        onClick: () => onUpdate({ status: 'Working' }),
+        icon: <Clock className="w-4 h-4" />,
+        className: 'text-orange-600 hover:bg-orange-50'
+      })
+      if (onComplete) {
+        statusItems.push({
+          label: 'Mark as Completed',
+          onClick: onComplete,
+          icon: <CheckSquare className="w-4 h-4" />,
+          className: 'text-green-600 hover:bg-green-50'
+        })
+      }
+      if (onCancel) {
+        statusItems.push({
+          label: 'Cancel Todo',
+          onClick: onCancel,
+          icon: <Square className="w-4 h-4" />,
+          className: 'text-gray-600 hover:bg-gray-50'
+        })
+      }
+    } else if (todo.status === 'Working') {
+      statusItems.push({
+        label: 'Mark as Open',
+        onClick: () => onUpdate({ status: 'Open' }),
+        icon: <Square className="w-4 h-4" />,
+        className: 'text-blue-600 hover:bg-blue-50'
+      })
+      if (onComplete) {
+        statusItems.push({
+          label: 'Mark as Completed',
+          onClick: onComplete,
+          icon: <CheckSquare className="w-4 h-4" />,
+          className: 'text-green-600 hover:bg-green-50'
+        })
+      }
+      if (onCancel) {
+        statusItems.push({
+          label: 'Cancel Todo',
+          onClick: onCancel,
+          icon: <Square className="w-4 h-4" />,
+          className: 'text-gray-600 hover:bg-gray-50'
+        })
+      }
+    } else if (todo.status === 'Closed' || todo.status === 'Cancelled') {
+      statusItems.push({
+        label: 'Reopen',
+        onClick: () => onUpdate({ status: 'Open' }),
+        icon: <Square className="w-4 h-4" />,
+        className: 'text-blue-600 hover:bg-blue-50'
+      })
+    }
+
+    return statusItems
+  }
+
   const getContextMenuItems = () => {
     const items: any[] = []
 
@@ -70,65 +139,34 @@ const TodoItem: React.FC<TodoItemProps> = ({
       className: 'text-blue-600 hover:bg-blue-50'
     })
 
-    // Plan in Before-Workz (if assigned to current user)
-    if (todo.is_assigned) {
-      items.push({
-        label: 'Plan in Before-Workz',
-        onClick: () => {
-          // TODO: Navigate to Before-Workz with this todo
-          console.log('Navigate to Before-Workz with todo:', todo.name)
-        },
-        icon: <CalendarCheck className="w-4 h-4" />,
-        className: 'text-indigo-600 hover:bg-indigo-50'
-      })
-    }
-
     // Edit (if owned)
-    if (todo.is_owned) {
+    if (todo.is_owned && onEdit) {
       items.push({
         label: 'Edit Todo',
-        onClick: () => {
-          // TODO: Open edit modal
-          console.log('Edit todo:', todo.name)
-        },
+        onClick: onEdit,
         icon: <Edit3 className="w-4 h-4" />,
         className: 'text-gray-600 hover:bg-gray-50'
       })
     }
 
-    // Status actions
-    if (todo.status === 'Open') {
+    // Assign To (if owned)
+    if (todo.is_owned && onAssign) {
       items.push({
-        label: 'Mark as Working',
-        onClick: () => onUpdate({ status: 'Working' }),
+        label: 'Assign To',
+        onClick: onAssign,
+        icon: <UserCheck className="w-4 h-4" />,
+        className: 'text-purple-600 hover:bg-purple-50'
+      })
+    }
+
+    // Change Status submenu
+    const statusItems = getStatusSubmenuItems()
+    if (statusItems.length > 0) {
+      items.push({
+        label: 'Change Status',
         icon: <Clock className="w-4 h-4" />,
-        className: 'text-orange-600 hover:bg-orange-50'
-      })
-      items.push({
-        label: 'Mark as Completed',
-        onClick: () => onUpdate({ status: 'Closed' }),
-        icon: <CheckSquare className="w-4 h-4" />,
-        className: 'text-green-600 hover:bg-green-50'
-      })
-    } else if (todo.status === 'Working') {
-      items.push({
-        label: 'Mark as Completed',
-        onClick: () => onUpdate({ status: 'Closed' }),
-        icon: <CheckSquare className="w-4 h-4" />,
-        className: 'text-green-600 hover:bg-green-50'
-      })
-      items.push({
-        label: 'Mark as Open',
-        onClick: () => onUpdate({ status: 'Open' }),
-        icon: <Square className="w-4 h-4" />,
-        className: 'text-blue-600 hover:bg-blue-50'
-      })
-    } else if (todo.status === 'Closed') {
-      items.push({
-        label: 'Reopen',
-        onClick: () => onUpdate({ status: 'Open' }),
-        icon: <Square className="w-4 h-4" />,
-        className: 'text-blue-600 hover:bg-blue-50'
+        className: 'text-gray-600 hover:bg-gray-50',
+        submenu: statusItems
       })
     }
 
@@ -173,37 +211,48 @@ const TodoItem: React.FC<TodoItemProps> = ({
     }
   }
 
-  const getOwnershipIndicator = () => {
-    if (todo.is_owned && todo.is_assigned) {
-      return (
-        <div className="flex items-center space-x-1 text-xs text-purple-600">
-          <UserCheck className="w-3 h-3" />
-          <span>Mine</span>
-        </div>
-      )
-    } else if (todo.is_owned) {
+  const getCreatorInfo = () => {
+    if (todo.is_owned) {
       return (
         <div className="flex items-center space-x-1 text-xs text-blue-600">
           <User className="w-3 h-3" />
           <span>Created by me</span>
         </div>
       )
-    } else if (todo.is_assigned) {
+    } else if (todo.owner) {
+      return (
+        <div className="flex items-center space-x-1 text-xs text-gray-500">
+          <User className="w-3 h-3" />
+          <span>Created by {todo.owner}</span>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const getAssigneeInfo = () => {
+    if (todo.is_assigned) {
       return (
         <div className="flex items-center space-x-1 text-xs text-green-600">
           <UserCheck className="w-3 h-3" />
           <span>Assigned to me</span>
         </div>
       )
-    } else if (todo.is_shared) {
+    } else if (todo.allocated_to) {
       return (
-        <div className="flex items-center space-x-1 text-xs text-orange-600">
-          <Tag className="w-3 h-3" />
-          <span>Shared</span>
+        <div className="flex items-center space-x-1 text-xs text-gray-500">
+          <UserCheck className="w-3 h-3" />
+          <span>Assigned to {todo.assigned_user_name || todo.allocated_to}</span>
+        </div>
+      )
+    } else {
+      return (
+        <div className="flex items-center space-x-1 text-xs text-gray-400">
+          <UserCheck className="w-3 h-3" />
+          <span>Unassigned</span>
         </div>
       )
     }
-    return null
   }
 
   const formatDate = (dateString: string) => {
@@ -250,31 +299,28 @@ const TodoItem: React.FC<TodoItemProps> = ({
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 cursor-pointer">
               {/* Title and Priority */}
-              <div className="flex items-start space-x-2 mb-1">
-                <h4 className={`text-sm font-medium flex-1 ${todo.status === 'Closed' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+              <div className="flex items-start justify-between mb-1">
+                <h4 className={`text-sm font-medium flex-1 pr-2 ${todo.status === 'Closed' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                   {todo.subject}
                 </h4>
-                {getPriorityBadge()}
+                <div className="flex-shrink-0">
+                  {getPriorityBadge()}
+                </div>
               </div>
 
               {/* Metadata Row */}
               <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
-                {/* Ownership */}
-                {getOwnershipIndicator()}
+                {/* Creator Info */}
+                {getCreatorInfo()}
+
+                {/* Assignee Info */}
+                {getAssigneeInfo()}
 
                 {/* Project */}
                 {todo.project && (
                   <div className="flex items-center space-x-1">
                     <Tag className="w-3 h-3" />
                     <span>{todo.project}</span>
-                  </div>
-                )}
-
-                {/* Assignee (if different from current user) */}
-                {todo.allocated_to && !todo.is_assigned && (
-                  <div className="flex items-center space-x-1">
-                    <User className="w-3 h-3" />
-                    <span>@{todo.assigned_user_name || todo.allocated_to}</span>
                   </div>
                 )}
 
@@ -346,9 +392,25 @@ const TodoItem: React.FC<TodoItemProps> = ({
 
             {/* Quick Actions */}
             <div className="flex items-center space-x-1 ml-4">
+              {/* Complete Button - for Open/Working todos */}
+              {(todo.status === 'Open' || todo.status === 'Working') && onComplete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onComplete()
+                  }}
+                  className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                  title="Mark as Completed"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Plan Button - for assigned todos */}
               {todo.is_assigned && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation()
                     // TODO: Navigate to Before-Workz
                     console.log('Plan todo:', todo.name)
                   }}
@@ -360,7 +422,10 @@ const TodoItem: React.FC<TodoItemProps> = ({
               )}
               
               <button
-                onClick={handleDoubleClick}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDoubleClick()
+                }}
                 className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
                 title="Open in Frappe"
               >

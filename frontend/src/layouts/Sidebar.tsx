@@ -1,5 +1,5 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { 
   MdDashboard, 
   MdChecklist, 
@@ -8,7 +8,11 @@ import {
   MdSettings,
   MdChevronLeft,
   MdChevronRight,
-  MdAccountCircle
+  MdAccountCircle,
+  MdExpandMore,
+  MdExpandLess,
+  MdAssignment,
+  MdApproval
 } from 'react-icons/md'
 import { UserService } from '../services/timesheetService'
 
@@ -22,16 +26,33 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>
   label: string
   badge?: number
+  subItems?: SubNavItem[]
+}
+
+interface SubNavItem {
+  path: string
+  icon: React.ComponentType<{ className?: string }>
+  label: string
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ expanded, onToggle }) => {
   const currentUser = UserService.getCurrentUser()
+  const location = useLocation()
+  const [timesheetExpanded, setTimesheetExpanded] = useState(false)
 
   const navItems: NavItem[] = [
     { path: '/', icon: MdDashboard, label: 'Dashboard' },
     { path: '/todos', icon: MdChecklist, label: 'Todos' },
     { path: '/planning', icon: MdCalendarToday, label: 'Planning' },
-    { path: '/timesheet', icon: MdSchedule, label: 'Timesheet' },
+    { 
+      path: '/timesheet', 
+      icon: MdSchedule, 
+      label: 'Timesheet',
+      subItems: [
+        { path: '/timesheet/assignments', icon: MdAssignment, label: 'Manage Assignments' },
+        { path: '/timesheet/approvals', icon: MdApproval, label: 'Pending Approvals' }
+      ]
+    },
     { path: '/settings', icon: MdSettings, label: 'Settings' },
   ]
 
@@ -67,29 +88,92 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, onToggle }) => {
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.path}>
-              <NavLink
-                to={item.path}
-                className={(navData) =>
-                  `flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group ${
-                    navData.isActive
+              {item.subItems ? (
+                // Timesheet with submenu
+                <div>
+                  <div
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
+                      location.pathname.startsWith('/timesheet')
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                    onClick={() => {
+                      if (item.path === '/timesheet') {
+                        setTimesheetExpanded(!timesheetExpanded)
+                      }
+                    }}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    {expanded && (
+                      <>
+                        <span className="font-medium flex-1">{item.label}</span>
+                        {timesheetExpanded ? (
+                          <MdExpandLess className="w-4 h-4" />
+                        ) : (
+                          <MdExpandMore className="w-4 h-4" />
+                        )}
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Submenu */}
+                  {expanded && timesheetExpanded && (
+                    <ul className="ml-8 mt-1 space-y-1">
+                      <li>
+                        <NavLink
+                          to="/timesheet"
+                          className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                            location.pathname === '/timesheet'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          <MdSchedule className="w-4 h-4 flex-shrink-0" />
+                          <span>View Timesheet</span>
+                        </NavLink>
+                      </li>
+                      {item.subItems.map((subItem) => (
+                        <li key={subItem.path}>
+                          <NavLink
+                            to={subItem.path}
+                            className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                              location.pathname === subItem.path
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                          >
+                            <subItem.icon className="w-4 h-4 flex-shrink-0" />
+                            <span>{subItem.label}</span>
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                // Regular nav item
+                <NavLink
+                  to={item.path}
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group ${
+                    location.pathname === item.path
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`
-                }
-                title={!expanded ? item.label : undefined}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {expanded && (
-                  <>
-                    <span className="font-medium">{item.label}</span>
-                    {item.badge && (
-                      <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
-                        {item.badge}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
+                  }`}
+                  title={!expanded ? item.label : undefined}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  {expanded && (
+                    <>
+                      <span className="font-medium">{item.label}</span>
+                      {item.badge && (
+                        <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              )}
             </li>
           ))}
         </ul>

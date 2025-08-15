@@ -14,7 +14,7 @@ app_license = "mit"
 add_to_apps_screen = [
 	{
 		"name": "workz",
-		"logo": "/assets/afterz/afterz.png",
+		"logo": "/assets/afterz/sgc-timesheet.png",
 		"title": "Workz",
 		"route": "/workz",
 		"has_permission": "afterz.api.has_app_permission"
@@ -192,7 +192,7 @@ add_to_apps_screen = [
 # Ignore links to specified DocTypes when deleting documents
 # -----------------------------------------------------------
 
-# ignore_links_on_delete = ["Communication", "ToDo"]
+ignore_links_on_delete = ["Planner Entry", "Timesheet Entry"]
 
 # Request Events
 # ----------------
