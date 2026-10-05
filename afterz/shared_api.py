@@ -3,6 +3,19 @@ import json
 
 from afterz.permissions import CLOSED_PROJECT_STATUSES, is_site_administrator
 
+# Savepoint names for the two endpoints below that write in a loop AND keep a
+# {'success': False} return contract. They need a savepoint precisely because
+# they return normally on failure, and a normal return is what makes frappe
+# commit (frappe/app.py: sync_database -> db.commit() on the success path). The
+# timesheet bulk pair in afterz_api.py does not need one -- it re-raises, so
+# frappe's end-of-request rollback undoes everything by itself.
+#
+# One savepoint is taken per request, so neither is released explicitly: the
+# transaction's commit or rollback drops it. (frappe's own savepoint() helper
+# releases because it is meant to be taken inside a loop.)
+ASSIGN_SAVEPOINT = 'afterz_assign_activity'
+REMOVE_ASSIGNMENT_SAVEPOINT = 'afterz_remove_assignment'
+
 @frappe.whitelist()
 def get_projects():
     """Get active projects"""
@@ -222,8 +235,20 @@ def get_assignable_activities(project_lead=None):
 
 @frappe.whitelist()
 def assign_activity_to_users(activity_name, user_list, priority="Medium", due_date=None, notes=""):
-    """Assign activity to multiple users via ToDo records"""
+    """Assign activity to multiple users via ToDo records.
+
+    The loop below inserts one ToDo per user. It is wrapped in a savepoint so
+    that a failure part-way through leaves none of them behind: this endpoint
+    reports failure by RETURNING {'success': False}, and a normal return is
+    exactly what makes frappe commit the rows the loop already managed to
+    insert. Without the savepoint the flag was false while the work was half
+    done -- and the caller, which does read the flag, then showed an error and
+    did not refresh, so the user saw no assignments where some existed.
+    """
+    savepoint_set = False
     try:
+        frappe.db.savepoint(ASSIGN_SAVEPOINT)
+        savepoint_set = True
         current_user = frappe.session.user
         
         # Get activity to check project permissions
@@ -280,7 +305,25 @@ def assign_activity_to_users(activity_name, user_list, priority="Medium", due_da
         }
         
     except Exception as e:
-        frappe.log_error(f"Error assigning activity to users: {str(e)}")
+        # Undo the ToDos this loop already inserted, so the flag below is true.
+        #
+        # Unlike the timesheet bulk pair, this endpoint keeps its return
+        # contract rather than raising: its callers really do read the flag --
+        # ActivityAssignmentModal, ManageAssignmentsModal and
+        # pages/ManageAssignments all branch on `result.success` and show
+        # `result.error`. Raising here would break three call sites to fix a
+        # problem a rollback fixes.
+        #
+        # ORDER MATTERS: log_error ends in error_log.insert()
+        # (frappe/utils/error.py), i.e. the Error Log row is written into the
+        # current transaction. Logging first and rolling back afterwards would
+        # discard the diagnostic along with the assignments. Roll back, then log.
+        if savepoint_set:
+            frappe.db.rollback(save_point=ASSIGN_SAVEPOINT)
+        frappe.log_error(
+            title='afterz.assign_activity_to_users failed',
+            message=frappe.get_traceback(),
+        )
         return {
             'success': False,
             'error': str(e)
@@ -323,8 +366,17 @@ def get_activity_assignments(activity_name):
 
 @frappe.whitelist()
 def remove_activity_assignment(activity_name, user):
-    """Remove ToDo assignment for activity/user"""
+    """Remove ToDo assignment for activity/user.
+
+    Usually one ToDo, but the query is not limited to one and the app does not
+    stop a user being assigned twice, so this closes however many it finds --
+    in a loop, under a savepoint, for the same reason as
+    assign_activity_to_users above.
+    """
+    savepoint_set = False
     try:
+        frappe.db.savepoint(REMOVE_ASSIGNMENT_SAVEPOINT)
+        savepoint_set = True
         current_user = frappe.session.user
         
         # Get activity to check project permissions
@@ -361,7 +413,15 @@ def remove_activity_assignment(activity_name, user):
         }
         
     except Exception as e:
-        frappe.log_error(f"Error removing activity assignment: {str(e)}")
+        # Roll back before logging; see assign_activity_to_users above for why
+        # this endpoint rolls back instead of raising, and why the order of
+        # these two calls is not arbitrary.
+        if savepoint_set:
+            frappe.db.rollback(save_point=REMOVE_ASSIGNMENT_SAVEPOINT)
+        frappe.log_error(
+            title='afterz.remove_activity_assignment failed',
+            message=frappe.get_traceback(),
+        )
         return {
             'success': False,
             'error': str(e)

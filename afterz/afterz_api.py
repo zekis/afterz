@@ -323,12 +323,33 @@ def submit_week_entries(employee, start_date, end_date):
             'count': len(entries)
         }
         
-    except Exception as e:
-        frappe.log_error(f"Error submitting week entries: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+    except Exception:
+        # Do NOT swallow this, and do not turn it into {'success': False}.
+        #
+        # frappe commits a whitelisted method's writes when it RETURNS, and
+        # rolls the whole transaction back only when the exception ESCAPES: in
+        # frappe/app.py the success path runs `sync_database`, which calls
+        # db.commit() for an unsafe method (a POST), while on an exception
+        # `rollback` stays True and the `finally:` block calls db.rollback().
+        #
+        # So catching a failure part-way through the loop is what turned a
+        # failed bulk submit into a COMMITTED PARTIAL one: every entry saved
+        # before the failure stayed Submitted, the rest stayed Draft, and the
+        # returned flag said the whole thing had failed. Letting the exception
+        # out makes this endpoint all-or-nothing using the framework's own rule
+        # -- no savepoint needed, because there is nothing else in this request
+        # worth keeping.
+        #
+        # defer_insert=True is load-bearing: log_error normally ends in
+        # error_log.insert() (frappe/utils/error.py), which would put the row in
+        # the very transaction frappe is about to roll back. Deferring is how
+        # frappe's own log_error_snapshot survives the same rollback.
+        frappe.log_error(
+            title='afterz.submit_week_entries failed',
+            message=frappe.get_traceback(),
+            defer_insert=True,
+        )
+        raise
 
 @frappe.whitelist()
 def approve_all_entries(employee, start_date, end_date, approval_notes=None):
@@ -406,12 +427,17 @@ def approve_all_entries(employee, start_date, end_date, approval_notes=None):
             'count': approved_count
         }
         
-    except Exception as e:
-        frappe.log_error(f"Error approving all entries: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+    except Exception:
+        # Same as submit_week_entries above, and the stakes are higher: a
+        # half-applied approve-all committed some entries as Approved, left the
+        # rest Submitted, and reported failure. See the comment there for why
+        # letting the exception out is the fix and why the log is deferred.
+        frappe.log_error(
+            title='afterz.approve_all_entries failed',
+            message=frappe.get_traceback(),
+            defer_insert=True,
+        )
+        raise
 
 @frappe.whitelist()
 def reject_entry_with_reason(name, rejection_reason):

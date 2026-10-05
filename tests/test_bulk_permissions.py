@@ -252,9 +252,16 @@ class TestApproveAll(Base):
         self.assertEqual(self.frappe.saved, [])
 
     def test_a_refusal_raises_rather_than_returning_success_false(self):
-        """It used to return {'success': False, ...}. No caller reads that flag
-        -- BulkActions awaits the call and only reports a thrown error -- so a
-        refusal was a silent no-op in the UI."""
+        """It used to return {'success': False, ...}, and no caller of THIS
+        endpoint reads that flag -- BulkActions, PendingApprovals and
+        ApprovalDashboardModal all await the call and only report a thrown error
+        -- so a refusal was a silent no-op in the UI.
+
+        Narrowed from "no caller reads that flag", which was too broad: the
+        assignment endpoints in shared_api really are read this way, by three
+        call sites that branch on result.success. The flag is a convention in
+        this app, which is why its absence here was a miss and not a style. See
+        test_bulk_atomicity, where that difference decides the fix."""
         self.as_user(ORDINARY)
         with self.assertRaises(StubPermissionError):
             self.afterz_api.approve_all_entries(WORKER, WEEK_START, WEEK_END)
