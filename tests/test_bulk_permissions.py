@@ -40,7 +40,7 @@ WEEK_END = "2026-10-11"
 
 PROJECT_FIELDS = {
     "project_name": "n/a",
-    "customer": "SGC Australia",
+    "customer": "Tierney Morris",
     "project_lead": None,
     "division": None,
     "project_type": None,
