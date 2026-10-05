@@ -1,6 +1,8 @@
 import frappe
 import json
 
+from afterz.permissions import CLOSED_PROJECT_STATUSES, is_site_administrator
+
 @frappe.whitelist()
 def get_projects():
     """Get active projects"""
@@ -62,17 +64,45 @@ def get_users():
 
 @frappe.whitelist()
 def get_user_project_permissions(user=None):
-    """Check if user can approve timesheets for any projects"""
+    """Whether `user` may approve timesheets, and the projects that lets them.
+
+    This answers the rule in afterz.permissions (afterz#3). It used to resolve
+    `user` and then never read it again: `can_approve` was `len(projects) > 0`
+    over *every* open project, so it was True for every logged-in user as soon
+    as the site had one open project. The UI believed it -- BulkActions shows
+    "Approve All" on it and TreeUserSelector shows the whole-team user picker
+    on it -- while approve_all_entries refused anyone who was not an approver.
+
+    `projects` is now the user's approval scope, not the project list. Nothing
+    in the frontend reads it today (checked), and get_projects() is the
+    endpoint for "all open projects".
+    """
     try:
         if not user:
             user = frappe.session.user
-        
+
+        if is_site_administrator(user):
+            # Administrators approve across every project, so their scope is
+            # the open projects rather than the ones naming them.
+            projects = frappe.get_all(
+                'Project',
+                fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
+                filters={'status': ['not in', CLOSED_PROJECT_STATUSES]}
+            )
+            return {
+                'can_approve': True,
+                'projects': projects
+            }
+
         projects = frappe.get_all(
             'Project',
             fields=['name', 'project_name', 'customer', 'status', 'project_lead', 'division', 'project_type'],
-            filters={'status': ['not in', ['Closed', 'Cancelled']]}
+            filters={
+                'timesheet_approver': user,
+                'status': ['not in', CLOSED_PROJECT_STATUSES]
+            }
         )
-        
+
         return {
             'can_approve': len(projects) > 0,
             'projects': projects
