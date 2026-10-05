@@ -16,7 +16,7 @@ add_to_apps_screen = [
 		"name": "Timesheets",
 		"logo": "/assets/afterz/timesheet.png",
 		"title": "Timesheets",
-		"route": "/workz",
+		"route": "/afterz",
 		"has_permission": "afterz.api.has_app_permission"
 	}
 ]

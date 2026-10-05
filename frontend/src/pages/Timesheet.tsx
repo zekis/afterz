@@ -37,7 +37,11 @@ const Timesheet: React.FC = () => {
   // Duplication state (Shift+Drag)
   const [isShiftDown, setIsShiftDown] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
-  
+
+  // Drag position tracking for click detection
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
+  const [draggedEntryForClick, setDraggedEntryForClick] = useState<CalendarEvent | null>(null)
+
   // Assignment modal state
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [selectedActivityForAssignment, setSelectedActivityForAssignment] = useState<Activity | null>(null)
@@ -330,21 +334,29 @@ const Timesheet: React.FC = () => {
   const handleDragStart = (event: DragStartEvent) => {
     const activeId = event.active.id as string
     const data = event.active.data.current
-    
+
+    // Store the initial position for click detection
+    if (event.activatorEvent instanceof MouseEvent) {
+      setDragStartPos({ x: event.activatorEvent.clientX, y: event.activatorEvent.clientY })
+    }
+
     if (data?.type === 'timesheet-entry') {
       setIsDuplicating(!!isShiftDown)
       document.body.style.cursor = isShiftDown ? 'copy' : ''
       setDraggedEntry(data.event)
+      setDraggedEntryForClick(data.event) // Store for click detection
       setDraggedActivity(null)
     } else if (data?.type === 'activity') {
       setIsDuplicating(false)
       setDraggedActivity(data.activity)
       setDraggedEntry(null)
+      setDraggedEntryForClick(null)
     } else {
       setIsDuplicating(false)
       const activity = activities.find(a => a.name === activeId)
       setDraggedActivity(activity || null)
       setDraggedEntry(null)
+      setDraggedEntryForClick(null)
     }
   }
 
@@ -352,9 +364,37 @@ const Timesheet: React.FC = () => {
     const { active, over } = event
     const data = active.data.current
 
+    // Check if this was a click (minimal movement) on a timesheet entry
+    let wasClick = false
+    if (dragStartPos && event.activatorEvent instanceof MouseEvent) {
+      const deltaX = Math.abs(event.activatorEvent.clientX - dragStartPos.x)
+      const deltaY = Math.abs(event.activatorEvent.clientY - dragStartPos.y)
+      const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+
+      // If movement is less than 5 pixels, treat it as a click
+      if (dragDistance < 5 && draggedEntryForClick) {
+        wasClick = true
+        // Open the history panel for this entry
+        const clickedEntry = draggedEntryForClick
+        setSelectedEntryId(clickedEntry.id)
+        const activityName = activities?.find(a => a.name === clickedEntry.activity)?.activity_name || clickedEntry.title
+        setHistoryPanel({
+          isOpen: true,
+          doctype: 'Timesheet Entry',
+          docname: clickedEntry.id,
+          title: activityName
+        })
+      }
+    }
+
     setDraggedActivity(null)
     setDraggedEntry(null)
+    setDragStartPos(null)
+    setDraggedEntryForClick(null)
     document.body.style.cursor = ''
+
+    // If it was a click, don't process as a drag operation
+    if (wasClick) return
 
     if (!over || !selectedUser) return
 
@@ -511,8 +551,30 @@ const Timesheet: React.FC = () => {
   }
 
   const handleDragCancel = (event: DragCancelEvent) => {
+    // Check if this was a click (drag cancelled with minimal movement) on a timesheet entry
+    if (dragStartPos && event.activatorEvent instanceof MouseEvent && draggedEntryForClick) {
+      const deltaX = Math.abs(event.activatorEvent.clientX - dragStartPos.x)
+      const deltaY = Math.abs(event.activatorEvent.clientY - dragStartPos.y)
+      const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+
+      // If movement is less than 5 pixels, treat it as a click
+      if (dragDistance < 5) {
+        const clickedEntry = draggedEntryForClick
+        setSelectedEntryId(clickedEntry.id)
+        const activityName = activities?.find(a => a.name === clickedEntry.activity)?.activity_name || clickedEntry.title
+        setHistoryPanel({
+          isOpen: true,
+          doctype: 'Timesheet Entry',
+          docname: clickedEntry.id,
+          title: activityName
+        })
+      }
+    }
+
     setDraggedActivity(null)
     setDraggedEntry(null)
+    setDragStartPos(null)
+    setDraggedEntryForClick(null)
     setIsDuplicating(false)
     document.body.style.cursor = ''
   }

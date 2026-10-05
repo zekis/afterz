@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name or "Workz - Unified Workspace" }}</title>
-    <meta name="description" content="{{ description or 'Unified workspace for todos, planning, and time tracking' }}">
+    <title>{{ title or "Afterz - Timesheet Manager" }}</title>
+    <meta name="description" content="{{ description or 'Modern timesheet management for project tracking' }}">
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/assets/frappe/images/frappe-favicon.svg">
@@ -23,12 +23,12 @@
     {% endif %}
 </head>
 <body>
-    <div id="workz-root">
+    <div id="root">
         <!-- Loading fallback -->
-        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8fafc;">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f9fafb;">
             <div style="text-align: center;">
-                <div style="width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
-                <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif;">Loading Workz...</p>
+                <div style="width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+                <p style="color: #6b7280; font-family: system-ui, -apple-system, sans-serif;">Loading Afterz Timesheet...</p>
             </div>
         </div>
     </div>
@@ -66,13 +66,13 @@
         // Fallback error handling
         window.addEventListener('error', function(e) {
             console.error('Application error:', e.error);
-            document.getElementById('workz-root').innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8fafc;">
+            document.getElementById('root').innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f9fafb;">
                     <div style="text-align: center; max-width: 400px; padding: 20px;">
                         <div style="color: #dc2626; font-size: 48px; margin-bottom: 16px;">⚠️</div>
-                        <h1 style="color: #1e293b; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 8px;">Application Error</h1>
-                        <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 16px;">
-                            Failed to load the Workz application. Please refresh the page or contact your administrator.
+                        <h1 style="color: #1f2937; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 8px;">Application Error</h1>
+                        <p style="color: #6b7280; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 16px;">
+                            Failed to load the Afterz timesheet application. Please refresh the page or contact your administrator.
                         </p>
                         <button onclick="window.location.reload()" style="background-color: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: system-ui, -apple-system, sans-serif;">
                             Refresh Page
@@ -84,15 +84,15 @@
         
         // Timeout fallback if app doesn't load
         setTimeout(function() {
-            const root = document.getElementById('workz-root');
-            if (root && root.innerHTML.includes('Loading Workz')) {
+            const root = document.getElementById('root');
+            if (root && root.innerHTML.includes('Loading Afterz Timesheet')) {
                 console.warn('Application load timeout - showing fallback message');
                 root.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8fafc;">
+                    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f9fafb;">
                         <div style="text-align: center; max-width: 400px; padding: 20px;">
                             <div style="color: #f59e0b; font-size: 48px; margin-bottom: 16px;">⏱️</div>
-                            <h1 style="color: #1e293b; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 8px;">Loading Timeout</h1>
-                            <p style="color: #64748b; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 16px;">
+                            <h1 style="color: #1f2937; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 8px;">Loading Timeout</h1>
+                            <p style="color: #6b7280; font-family: system-ui, -apple-system, sans-serif; margin-bottom: 16px;">
                                 The application is taking longer than expected to load. This might be due to network issues or the development server not running.
                             </p>
                             <button onclick="window.location.reload()" style="background-color: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: system-ui, -apple-system, sans-serif;">

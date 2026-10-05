@@ -1,10 +1,11 @@
 import frappe
+import json
 
 def get_context(context):
-    """Get context for the unified Workz application"""
+    """Get context for the Afterz timesheet app"""
     # Ensure user is logged in
     if frappe.session.user == 'Guest':
-        frappe.throw('Please login to access the Workz application', frappe.PermissionError)
+        frappe.throw('Please login to access the timesheet application', frappe.PermissionError)
     
     # Get minimal boot data for the frontend
     boot_data = {
@@ -20,12 +21,11 @@ def get_context(context):
     
     context.boot = boot_data
     
-    # Page metadata
-    context.title = "Workz - Unified Workspace"
-    context.description = "Unified workspace for todos, planning, and time tracking"
-    context.app_name = "Workz"
+    # Add any additional context data
+    context.title = "Afterz - Timesheet Manager"
+    context.description = "Modern timesheet management for project tracking"
     
-    # Page layout flags
+    # Make the page full width
     context.no_cache = 1
     context.no_breadcrumbs = 1
     context.full_width = True
