@@ -365,7 +365,7 @@ def reject_entry_with_reason(name, rejection_reason):
         
         # Check if user can approve this project
         project_doc = frappe.get_doc('Project', doc.project)
-        if project_doc.timesheet_approver != current_user:
+        if current_user != 'Administrator' and project_doc.timesheet_approver != current_user:
             return {
                 'success': False,
                 'error': 'You do not have approval permissions for this project'
@@ -399,7 +399,7 @@ def unapprove_entry(name):
         
         # Check if user can approve this project
         project_doc = frappe.get_doc('Project', doc.project)
-        if project_doc.timesheet_approver != current_user:
+        if current_user != 'Administrator' and project_doc.timesheet_approver != current_user:
             return {
                 'success': False,
                 'error': 'You do not have approval permissions for this project'

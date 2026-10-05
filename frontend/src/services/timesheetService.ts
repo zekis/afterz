@@ -129,7 +129,11 @@ export class TimesheetService {
       name: name,
       rejection_reason: rejectionReason
     })
-    return response.message
+    const result = response.message
+    if (!result?.success) {
+      throw new Error(result?.error || 'Failed to reject timesheet entry')
+    }
+    return result
   }
 
   // Un-approve an approved entry back to draft
@@ -137,7 +141,11 @@ export class TimesheetService {
     const response = await FrappeAPI.post<any>('afterz.afterz_api.unapprove_entry', {
       name: name
     })
-    return response.message
+    const result = response.message
+    if (!result?.success) {
+      throw new Error(result?.error || 'Failed to un-approve timesheet entry')
+    }
+    return result
   }
 
   // Get approval dashboard data
