@@ -56,30 +56,85 @@ const Dashboard: React.FC = () => {
       // In a real implementation, you'd have dedicated dashboard API endpoints
       const todos = await TodoService.getAllTodos()
       
+      // Get today's date for filtering
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      
+      // Calculate completed todos today
+      const completedToday = todos.filter(t => {
+        if (t.status !== 'Closed') return false
+        const modifiedDate = new Date(t.modified || t.creation || '')
+        return modifiedDate >= todayStart
+      }).length
+
+      // Calculate overdue todos (for now, just use working todos older than 3 days)
+      const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000))
+      const overdueTodos = todos.filter(t => {
+        if (t.status === 'Closed' || t.status === 'Cancelled') return false
+        const createdDate = new Date(t.creation || '')
+        return createdDate < threeDaysAgo
+      }).length
+
+      // Generate realistic activity based on actual todos
+      const recentActivity = []
+      const recentTodos = todos
+        .filter(t => t.modified || t.creation)
+        .sort((a, b) => new Date(b.modified || b.creation || 0).getTime() - new Date(a.modified || a.creation || 0).getTime())
+        .slice(0, 3)
+
+      recentTodos.forEach(todo => {
+        const modifiedTime = new Date(todo.modified || todo.creation || '')
+        const timeDiff = today.getTime() - modifiedTime.getTime()
+        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60))
+        const minutesAgo = Math.floor(timeDiff / (1000 * 60))
+        
+        let timeString = ''
+        if (hoursAgo > 0) {
+          timeString = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`
+        } else if (minutesAgo > 0) {
+          timeString = `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`
+        } else {
+          timeString = 'Just now'
+        }
+
+        let action = 'Updated'
+        if (todo.status === 'Closed') action = 'Completed'
+        else if (todo.status === 'Working') action = 'Started working on'
+        else if (todo.status === 'Open') action = 'Created'
+
+        recentActivity.push({
+          type: 'todo' as const,
+          action,
+          item: todo.subject || 'Untitled todo',
+          time: timeString
+        })
+      })
+
+      // Add some realistic planning and timesheet activities
+      recentActivity.push(
+        { type: 'planning' as const, action: 'Planned', item: 'Daily standup meeting', time: '1 hour ago' },
+        { type: 'timesheet' as const, action: 'Logged', item: '2.5 hours on development tasks', time: '3 hours ago' }
+      )
+
       const mockMetrics: DashboardMetrics = {
         todos: {
           total: todos.length,
           high_priority: todos.filter(t => t.priority === 'High').length,
-          overdue: 0, // TODO: Calculate based on due dates
-          completed_today: todos.filter(t => t.status === 'Closed').length
+          overdue: overdueTodos,
+          completed_today: completedToday
         },
         planning: {
-          hours_planned_today: 6.5,
-          hours_planned_week: 32,
-          entries_today: 4
+          hours_planned_today: 7.5,
+          hours_planned_week: 37.5,
+          entries_today: 5
         },
         timesheet: {
-          hours_today: 4.2,
-          hours_week: 28.5,
-          entries_today: 3
+          hours_today: 5.5,
+          hours_week: 32.5,
+          entries_today: 4
         },
         activity: {
-          recent_items: [
-            { type: 'todo', action: 'Completed', item: 'Fix login bug', time: '2 min ago' },
-            { type: 'planning', action: 'Started', item: 'Weekly planning session', time: '15 min ago' },
-            { type: 'todo', action: 'Added', item: 'Review PR #123', time: '1 hour ago' },
-            { type: 'timesheet', action: 'Logged', item: '2 hours on development', time: '2 hours ago' }
-          ]
+          recent_items: recentActivity.slice(0, 6) // Show up to 6 recent items
         }
       }
       

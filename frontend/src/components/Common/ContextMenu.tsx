@@ -22,6 +22,41 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ isOpen, position, items, onCl
   const menuRef = useRef<HTMLDivElement>(null)
   const [hoveredSubmenu, setHoveredSubmenu] = useState<number | null>(null)
   const [submenuPosition, setSubmenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [adjustedPosition, setAdjustedPosition] = useState<{ x: number; y: number }>(position)
+
+  // Calculate adjusted position to prevent menu from going off-screen
+  useEffect(() => {
+    if (isOpen && menuRef.current) {
+      const menuRect = menuRef.current.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      
+      let adjustedX = position.x
+      let adjustedY = position.y
+      
+      // Check if menu would go off the right edge
+      if (position.x + menuRect.width > viewportWidth) {
+        adjustedX = viewportWidth - menuRect.width - 10 // 10px margin
+      }
+      
+      // Check if menu would go off the bottom edge
+      if (position.y + menuRect.height > viewportHeight) {
+        adjustedY = viewportHeight - menuRect.height - 10 // 10px margin
+      }
+      
+      // Ensure menu doesn't go off the left edge
+      if (adjustedX < 10) {
+        adjustedX = 10
+      }
+      
+      // Ensure menu doesn't go off the top edge
+      if (adjustedY < 10) {
+        adjustedY = 10
+      }
+      
+      setAdjustedPosition({ x: adjustedX, y: adjustedY })
+    }
+  }, [isOpen, position])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -70,8 +105,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ isOpen, position, items, onCl
       ref={menuRef}
       className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-[150px]"
       style={{
-        left: position.x,
-        top: position.y,
+        left: adjustedPosition.x,
+        top: adjustedPosition.y,
       }}
     >
       {items.map((item, index) => (

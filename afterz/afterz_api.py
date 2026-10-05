@@ -129,26 +129,45 @@ def update_timesheet_entry(name, **kwargs):
         }
 
 @frappe.whitelist()
-def delete_timesheet_entry(name):
+def delete_timesheet_entry(**kwargs):
     """Delete a timesheet entry"""
     try:
+        # Extract name parameter
+        name = kwargs.get('name')
+        if not name:
+            frappe.throw('Timesheet entry name is required')
+
         doc = frappe.get_doc('Timesheet Entry', name)
-        
+
         # Check permissions
         if doc.employee != frappe.session.user and not frappe.has_permission('Timesheet Entry', 'delete'):
             frappe.throw('You do not have permission to delete this timesheet entry')
-        
+
         doc.delete()
-        
+
         return {
             'success': True,
             'message': 'Timesheet entry deleted successfully'
         }
-    except Exception as e:
-        frappe.log_error(f"Error deleting timesheet entry: {str(e)}")
+    except frappe.exceptions.LinkExistsError as e:
+        # Handle linked document error with user-friendly message
+        error_msg = str(e)
+        # Extract just the essential part of the error message
+        if 'is linked with' in error_msg:
+            error_msg = 'Cannot delete this timesheet entry because it is linked to other documents. Please remove the links first.'
+
+        frappe.log_error(title=f"Delete failed: {name}", message=error_msg)
         return {
             'success': False,
-            'error': str(e)
+            'error': error_msg
+        }
+    except Exception as e:
+        # Handle other errors with shorter log message
+        error_msg = str(e)
+        frappe.log_error(title=f"Delete error: {name}", message=error_msg)
+        return {
+            'success': False,
+            'error': error_msg
         }
 
 @frappe.whitelist()
