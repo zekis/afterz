@@ -1,6 +1,12 @@
 import frappe
 from datetime import datetime, timedelta
 
+from afterz.permissions import (
+    approver_projects,
+    is_site_administrator,
+    is_timesheet_admin,
+)
+
 @frappe.whitelist()
 def get_timesheet_entries(start_date, end_date, employee=None):
     """Get timesheet entries for a date range
@@ -263,7 +269,25 @@ def get_users_with_submission_counts(start_date, end_date):
 
 @frappe.whitelist()
 def submit_week_entries(employee, start_date, end_date):
-    """Submit all draft entries for a user's week"""
+    """Submit every draft entry in one user's week.
+
+    Permission (afterz#3): anyone may submit their own week; only a timesheet
+    admin may submit somebody else's. `employee` holds a User name, so the
+    comparison against frappe.session.user is the ownership test -- the same
+    one update_timesheet_entry and delete_timesheet_entry have always made per
+    entry. This endpoint made none, so any logged-in user could submit another
+    employee's drafts by passing their address.
+
+    Checked before the try block on purpose: a refusal should reach the caller
+    as a PermissionError, not be swallowed by the except below and logged as an
+    application error.
+    """
+    if employee != frappe.session.user and not is_timesheet_admin():
+        frappe.throw(
+            'You do not have permission to submit timesheet entries for another user',
+            frappe.PermissionError
+        )
+
     try:
         # Get all draft entries for the user in the date range
         # Build full-day datetime window from provided dates
@@ -308,39 +332,53 @@ def submit_week_entries(employee, start_date, end_date):
 
 @frappe.whitelist()
 def approve_all_entries(employee, start_date, end_date, approval_notes=None):
-    """Approve all entries for a user's week (regardless of status - draft, submitted, etc.)"""
-    try:
-        current_user = frappe.session.user
-        
-        # Get projects where current user is timesheet approver
-        projects = frappe.get_all(
-            'Project',
-            fields=['name'],
-            filters={'timesheet_approver': current_user, 'status': ['not in', ['Closed', 'Cancelled']]}
+    """Approve the SUBMITTED entries in one user's week.
+
+    Drafts are left alone. (This docstring used to say "regardless of status -
+    draft, submitted, etc."; the filter below has never done that, and the
+    comment beside it said the opposite.)
+
+    Permission (afterz#3): only a timesheet admin may approve. The two halves
+    of "admin" differ in reach, which is why they are not one query:
+
+      * the site administrator approves across every project, and is the only
+        one who can approve an entry carrying no project at all;
+      * anyone else is confined to the open projects naming them as
+        timesheet_approver.
+
+    A refusal is now a PermissionError rather than {'success': False}. The
+    caller never read that flag -- BulkActions awaits the call and only
+    reports on a thrown error -- so a refusal used to be a silent no-op.
+    """
+    current_user = frappe.session.user
+
+    if not is_timesheet_admin(current_user):
+        frappe.throw(
+            'You do not have permission to approve timesheet entries',
+            frappe.PermissionError
         )
-        
-        if not projects:
-            return {
-                'success': False,
-                'error': 'You do not have approval permissions for any projects'
-            }
-        
-        project_names = [p.name for p in projects]
-        
-        # Get ONLY SUBMITTED entries for this user in date range for approved projects
+
+    try:
         # Build full-day datetime window from provided dates
         start_dt = f"{start_date} 00:00:00"
         end_dt = f"{end_date} 23:59:59"
 
+        filters = {
+            'employee': employee,
+            'status': 'Submitted',  # Only approve submitted entries, not drafts
+            'check_in_time': ['between', [start_dt, end_dt]]
+        }
+
+        if not is_site_administrator(current_user):
+            # Confine an approver to their own projects. Omitting this for the
+            # administrator is deliberate: an 'in' filter would also drop
+            # entries with no project, which nobody else is able to approve.
+            filters['project'] = ['in', approver_projects(current_user)]
+
         entries = frappe.get_all(
             'Timesheet Entry',
             fields=['name', 'status'],
-            filters={
-                'employee': employee,
-                'status': 'Submitted',  # Only approve submitted entries, not drafts
-                'project': ['in', project_names],
-                'check_in_time': ['between', [start_dt, end_dt]]
-            }
+            filters=filters
         )
         
         if not entries:
