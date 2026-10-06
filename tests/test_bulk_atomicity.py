@@ -47,12 +47,12 @@ from tests.frappe_stub import ValidationError as StubValidationError  # noqa: E4
 from tests.frappe_stub import install  # noqa: E402
 
 ADMIN = "Administrator"
-APPROVER = "approver@tierneymorris.com.au"
-WORKER = "worker@tierneymorris.com.au"
-LEAD = "lead@tierneymorris.com.au"
-USER_A = "a@tierneymorris.com.au"
-USER_B = "b@tierneymorris.com.au"
-USER_C = "c@tierneymorris.com.au"
+APPROVER = "approver@company.test"
+WORKER = "worker@company.test"
+LEAD = "lead@company.test"
+USER_A = "a@company.test"
+USER_B = "b@company.test"
+USER_C = "c@company.test"
 
 WEEK_START = "2026-10-05"
 WEEK_END = "2026-10-11"
