@@ -14,7 +14,7 @@ app_license = "mit"
 add_to_apps_screen = [
 	{
 		"name": "Timesheets",
-		"logo": "/assets/afterz/timesheet.png",
+		"logo": "/assets/afterz/tm-mark.svg",
 		"title": "Timesheets",
 		"route": "/afterz",
 		"has_permission": "afterz.api.has_app_permission"

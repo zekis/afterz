@@ -64,13 +64,11 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, onToggle }) => {
       <div className="p-4 border-b border-slate-200 flex items-center justify-between">
         {expanded && (
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg overflow-hidden">
-              <img 
-                src="/assets/afterz/timesheet.png" 
-                alt="Workz Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img
+              src="/assets/afterz/tm-logo.svg"
+              alt="Tierney Morris"
+              className="h-7 w-auto"
+            />
             <span className="font-semibold text-slate-900">Workz</span>
           </div>
         )}
