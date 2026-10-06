@@ -29,11 +29,11 @@ from tests.frappe_stub import PermissionError as StubPermissionError  # noqa: E4
 from tests.frappe_stub import install  # noqa: E402
 
 ADMIN = "Administrator"
-APPROVER = "approver@tierneymorris.com.au"
-OTHER_APPROVER = "other.approver@tierneymorris.com.au"
-CLOSED_ONLY = "closed.project.approver@tierneymorris.com.au"
-ORDINARY = "ordinary.user@tierneymorris.com.au"
-WORKER = "worker@tierneymorris.com.au"
+APPROVER = "approver@company.test"
+OTHER_APPROVER = "other.approver@company.test"
+CLOSED_ONLY = "closed.project.approver@company.test"
+ORDINARY = "ordinary.user@company.test"
+WORKER = "worker@company.test"
 
 WEEK_START = "2026-10-05"
 WEEK_END = "2026-10-11"
